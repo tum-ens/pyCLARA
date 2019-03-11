@@ -1,4 +1,4 @@
-# zonal-clustering
+# geoclustering
 A code that clusters high-resolution rasters into regions with homogeneous characteristics.
 
 What is GeoClustering?
