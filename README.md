@@ -24,4 +24,6 @@ The main libraries required by GeoClustering are:
 
 Output:
 The output of GeoClustering is a shapefile, with the clusters of the input map as polygons.
+
+References:
 [1]	https://www.linkedin.com/pulse/finding-optimal-number-clusters-k-means-through-elbow-asanka-perera
