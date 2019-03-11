@@ -1,7 +1,7 @@
 # geoclustering
 A code that clusters high-resolution rasters into regions with homogeneous characteristics.
 
-Authors: Mohammed Youssef Mahfouz, Waleed Sattar Khan, Kais Siala
+Authors: Mohammad Youssef Mahfouz, Waleed Sattar Khan, Kais Siala
 
 What is GeoClustering?
 GeoClustering is a python-based code which created geographical clusters from high resolution maps. The algorithm uses kmeans++ and max-p regions to create contiguous non-concentrated clusters. GeoClustering works with any high-resolution geographical maps or big data maps with hundreds of millions of pixels.
