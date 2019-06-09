@@ -1,5 +1,3 @@
-# For details on needed packages and how to install them, check the wiki in clustering repository on GitLab.
-
 import pandas as pd
 import geopandas as gpd
 import numpy as np
@@ -24,12 +22,14 @@ import pprint
 import logging
 
 # Global variables which need to be configured before running the code.
-# The command used to run the code: python clustering_code.py --inputfile input_file_path --type wind/solar/load
+# The command used to run the code: python clustering_code.py --inputfile input_file_path --type sum/mean
 argument_parser = ArgumentParser(description='This program does clustering of high resolution raster files using '
                                              'k-means and max-p algorithm.')
 argument_parser.add_argument('--inputfile', help='The input raster file. It must be in .tif format.', required=True)
 argument_parser.add_argument('--rows', help='The number of rows that the input raster will be cut into.')
 argument_parser.add_argument('--cols', help='The number of columns that the input raster will be cut into.')
+argument_parser.add_argument('--type', help='It can either be "mean" or "sum" depending on the type of data that is'
+                                            'being clustered.', required=True)
 args = argument_parser.parse_args()
 
 
@@ -404,8 +404,12 @@ def k_means_clustering(folder_names):
 
         clusters = clusters.flatten()
         table['CL'] = clusters
-        for cl in table.loc[pd.notnull(table['Value']), 'CL'].unique():
-            table.loc[table['CL'] == cl, 'Value'] = table.loc[table['CL'] == cl, 'Value'].sum()
+        if args.type == 'mean':
+            for cl in table.loc[pd.notnull(table['Value']), 'CL'].unique():
+                table.loc[table['CL'] == cl, 'Value'] = table.loc[table['CL'] == cl, 'Value'].mean()
+        elif args.type == 'sum':
+            for cl in table.loc[pd.notnull(table['Value']), 'CL'].unique():
+                table.loc[table['CL'] == cl, 'Value'] = table.loc[table['CL'] == cl, 'Value'].sum()
         table.loc[pd.isnull(table['Value']), 'Value'] = -1
         cluster_means = table['Value'].values.reshape(no_of_rows_in_map, no_of_columns_in_map)
         logger.info('Converting array back to raster. File created: ' + folder_names['output_k_means'] +
@@ -568,6 +572,7 @@ def max_p_algorithm(folder_names):
                                 (non_empty_rasters.loc[i, 'rel_size'] +
                                  (coef['c'] * non_empty_rasters.loc[i, 'rel_std']))))) * data['Value'].sum() * 0.5
         logger.debug('Threshold complete: ' + str(thr))
+        # Threshold here was used depending on the size and standard deviation
         if len(data) == 1:
             thr = data['Value'].sum() - 0.01
         random_no = rd.randint(1000, 1500)  # The range is selected randomly.
@@ -581,8 +586,9 @@ def max_p_algorithm(folder_names):
         logger.info('Number of clusters after max-p: ' + str(r.p))
         # print('Type:', type(w))
         if r.p == 0:
+            import pdb; pdb.set_trace()
             logger.info('No initial solution found.')
-            logger.info('Removing in-connected areas again.')
+            logger.info('Removing disconnected areas again.')
             gal = libpysal.open('%d.gal' % i, 'w')
             gal.write(w)
             gal.close()
@@ -624,7 +630,10 @@ def max_p_algorithm(folder_names):
             logger.info('Number of clusters after max-p: ' + str(r.p))
         data['CL'] = pd.Series(r.area2region).reindex(data.index)
         data['geometry'] = data['geometry'].buffer(0)
-        file = data.dissolve(by='CL', aggfunc='sum')
+        if args.type == 'mean':
+            file = data.dissolve(by='CL', aggfunc='mean')
+        elif args.type == 'sum':
+            file = data.dissolve(by='CL', aggfunc='sum')
         file.reset_index(inplace=True)
 
         # Result for every part after max-p one
@@ -667,6 +676,7 @@ def max_p_algorithm_2(folder_names):
 
     logger.info('Opening file: ' + folder_names['output_parts_max_p'] + 'max_p_combined.shp')
     data = gpd.read_file(folder_names['output_parts_max_p'] + 'max_p_combined.shp')
+    data_scaled = MinMaxScaler().fit_transform(data['Value'].values.reshape(-1, 1))
 
     logger.info('Creating weights object.')
     w = ps.weights.Queen.from_shapefile(folder_names['output_parts_max_p'] + 'max_p_combined.shp')
@@ -705,7 +715,7 @@ def max_p_algorithm_2(folder_names):
     print('Neighbors corrected!')
     logger.info('Neighbors corrected.')
 
-    thr = 0.0253 * data['Value'].sum()
+    thr = 0.0275 * data['Value'].sum()
     logger.debug('Threshold = ' + str(thr))
     random_no = rd.randint(1000, 1500)  # The range is selected randomly.
     logger.debug('Random number for seed = ' + str(random_no))
@@ -713,14 +723,17 @@ def max_p_algorithm_2(folder_names):
 
     print('Neighbors Assigned. Running max-p.')
     logger.info('Running max-p.')
-    r = ps.region.maxp.Maxp(w, data['Value'].values.reshape(-1,1), floor=thr, floor_variable=data['Value'], initial=5000)
+    r = ps.region.maxp.Maxp(w, data['Value'].values.reshape(-1, 1), floor=thr, floor_variable=data['Value'], initial=5000)
     print('Max-p finished!')
     print('Number of clusters: ' + str(r.p))
     logger.info('Number of clusters: ' + str(r.p))
 
     data['CL'] = pd.Series(r.area2region).reindex(data.index)
     data['geometry'] = data.buffer(0)
-    output = data.dissolve(by='CL', aggfunc='sum')
+    if args.type == 'mean':
+        output = data.dissolve(by='CL', aggfunc='mean')
+    elif args.type == 'sum':
+        output = data.dissolve(by='CL', aggfunc='sum')
     output.reset_index(inplace=True)
     output['NAME_0'] = 'CL'
     aux = [str(output.loc[i,'CL']).zfill(2) for i in output.index]
@@ -955,15 +968,25 @@ def eq_solver(coef, ll_point, ul_point, ur_point):
     return f
 
 
+def get_type():
+    """
+    This function gets the type of the args.type by converting it to lower case.
+    :return:
+    """
+    args.type = args.type.lower()
+
+
 if __name__ == '__main__':
     print('------------------------- Starting Clustering -------------------------')
     current_time = datetime.datetime.now()
     formatted_time = current_time.strftime("%Y-%m-%d_%H:%M:%S")
     print('Started at: ' + formatted_time)
 
+    get_type()
+
     time_folder = current_time.strftime("%Y-%m-%d_%H%M%S")
     # If you want to use existing folder, input timestamp of that folder in line below and uncomment it.
-    time_folder = '2019-03-07_174110'
+    # time_folder = '2019-05-30_141525'
     folders = create_folders_for_output(args.inputfile, time_folder)
 
     #  Setting basic config for logger.
@@ -973,14 +996,14 @@ if __name__ == '__main__':
         filename=folders['main_folder'] + 'log.txt')  # pass explicit filename here
     logger = logging.getLogger()
 
-    # if args.rows and args.cols:
-        # result = cut_raster_file_to_smaller_boxes(args.inputfile, folders, args.rows, args.cols)
-    # else:
-        # result = cut_raster_file_to_smaller_boxes(args.inputfile, folders)
+    if args.rows and args.cols:
+        result = cut_raster_file_to_smaller_boxes(args.inputfile, folders, args.rows, args.cols)
+    else:
+        result = cut_raster_file_to_smaller_boxes(args.inputfile, folders)
 
-    # result = choose_reference_values(folders)
+    result = choose_reference_values(folders)
 
-    # result = identify_number_of_optimum_clusters(folders)
+    result = identify_number_of_optimum_clusters(folders)
 
     result = k_means_clustering(folders)
 
