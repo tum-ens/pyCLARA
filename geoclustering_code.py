@@ -986,7 +986,7 @@ if __name__ == '__main__':
 
     time_folder = current_time.strftime("%Y-%m-%d_%H%M%S")
     # If you want to use existing folder, input timestamp of that folder in line below and uncomment it.
-    # time_folder = '2019-03-08_185555'
+    # time_folder = '2019-05-30_141525'
     folders = create_folders_for_output(args.inputfile, time_folder)
 
     #  Setting basic config for logger.
