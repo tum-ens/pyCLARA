@@ -413,7 +413,7 @@ def cluster_trans_file(trans_file_path, voronoi_file_path, no_of_clusters=28):
 
         # Find common neighbors between poly1 and poly2 and just let it remain in one list (either poly1_n or poly2_n).
         # This will eliminate the bug that is introduced while assigning and correcting neighbors in for loops below.
-        common_n = list(set(poly1_n).intersection(poly2_n))
+        # common_n = list(set(poly1_n).intersection(poly2_n))
 
         # Also need to change elec_neighbors column of all associated polygons. ->DONE
         # The new id of the poly_dissolved also needs to be added to elec_neighbors of all others. ->DONE
@@ -428,17 +428,25 @@ def cluster_trans_file(trans_file_path, voronoi_file_path, no_of_clusters=28):
                 gdf_voronoi[gdf_voronoi['id'] == poly_id]['elec_neighbors'].values[0].append(poly_dissolved['id'].values[0])
 
         # Only 1 common transmission line between two polygons being removed. Finding the common transmission line.
+        # !!!This is not necessary. There can be more than one common_trans_line between two neighbors after some polygons
+        # have been dissolved. THIS IS PROBABLY WHERE THE BUG IS INTRODUCED!!!
         poly1_trans_lines = poly1['trans_lines'].values[0]
         poly2_trans_lines = poly2['trans_lines'].values[0]
-        common_trans_line = list(set(poly1_trans_lines).intersection(poly2_trans_lines))[0]
-        poly1_trans_lines.remove(common_trans_line)
-        poly2_trans_lines.remove(common_trans_line)
+        common_trans_line = list(set(poly1_trans_lines).intersection(poly2_trans_lines))
+
+        cap_all_common_lines = 0.0
+        for line in common_trans_line:
+            poly1_trans_lines.remove(line)
+            poly2_trans_lines.remove(line)
+            cap_all_common_lines += float(gdf_trans[gdf_trans['ID'] == line]['Cap_MVA'].values[0])
+
+        # poly1_trans_lines.remove(common_trans_line)
+        # poly2_trans_lines.remove(common_trans_line)
         poly_dissolved.at[0, 'trans_lines'] = list(poly1_trans_lines + poly2_trans_lines)
 
         # From the total capacity of poly1 and poly2, the capacity of common_trans_line must be subtracted in order to
         # get the correct capacity.
-        cap_common_trans_line = gdf_trans[gdf_trans['ID'] == common_trans_line]['Cap_MVA'].values[0]
-        poly_dissolved['Cap'] = poly_dissolved['Cap'] - cap_common_trans_line
+        poly_dissolved['Cap'] = poly_dissolved['Cap'] - cap_all_common_lines
 
         # Calculating new ratio for poly_dissolved.
         poly_dissolved['Ratio'] = poly_dissolved['Cap'] / poly_dissolved['Area']
@@ -452,7 +460,7 @@ def cluster_trans_file(trans_file_path, voronoi_file_path, no_of_clusters=28):
             islands += 1
             print('No electric neighbors. No. of islands:' + str(islands))
             poly_dissolved['Ratio'] = 0
-            pdb.set_trace()
+            # pdb.set_trace()
 
         # Adding poly_dissolved to gdf_voronoi.
         gdf_voronoi = gdf_voronoi.append(poly_dissolved, ignore_index=True)
@@ -470,6 +478,10 @@ def cluster_trans_file(trans_file_path, voronoi_file_path, no_of_clusters=28):
             logger.info('Len:' + str(len_gdf_voronoi))
             print('Current time: ' + time_formatted)
             print('Len:' + str(len_gdf_voronoi))
+
+        if len(gdf_voronoi) == 4000:
+            gdf_voronoi.to_file(driver='ESRI Shapefile', filename='final_trans_result_4000.shp')
+            pdb.set_trace()
 
     pdb.set_trace()
     try:
@@ -521,6 +533,7 @@ if __name__ == '__main__':
     current_time = datetime.datetime.now()
     formatted_time = current_time.strftime("%Y-%m-%d_%H:%M:%S")
     print('Started at: ' + formatted_time)
+
     clean_clipped_trans_file = 'clipped_gridkit_connected.shp'
     voronoi_file = 'clipped_voronoi_latest.shp'
     cluster_trans_file(clean_clipped_trans_file, voronoi_file)
