@@ -21,17 +21,14 @@ import datetime
 import pprint
 import logging
 
-# Global variables which need to be configured before running the code.
-# The command used to run the code: python clustering_code.py --inputfile input_file_path --type sum/mean
-argument_parser = ArgumentParser(description='This program does clustering of high resolution raster files using '
-                                             'k-means and max-p algorithm.')
-argument_parser.add_argument('--inputfile', help='The input raster file. It must be in .tif format.', required=True)
-argument_parser.add_argument('--rows', help='The number of rows that the input raster will be cut into.')
-argument_parser.add_argument('--cols', help='The number of columns that the input raster will be cut into.')
-argument_parser.add_argument('--type', help='It can either be "mean" or "sum" depending on the type of data that is'
-                                            'being clustered.', required=True)
-args = argument_parser.parse_args()
 
+def initialization():
+    print('------------------------- Starting Clustering -------------------------')
+    print('Started at: ' + formatted_time)
+    from config import paths, param, logger
+	
+    return paths, param, logger
+	
 
 def array_to_raster(array, destination_file, input_raster_file):
     """This function changes from array back to raster (used after kmeans algorithm).
@@ -153,74 +150,69 @@ def create_folders_for_output(input_file, folder_time):
         return folder_names
 
 
-def cut_raster_file_to_smaller_boxes(input_file, folder_names, scale_rows=10, scale_columns=10):
+def cut_raster_file_to_smaller_boxes(input_file, folder_names, scale_rows=10, scale_columns=10): cut_raster_file_to_smaller_boxes(param, paths)
     """This function converts the raster file into a m*n boxes with m rows and n columns.
         :param input_file = The input wind file.
         :param scale_rows = Number of rows the raster is to be split in.
         :param scale_columns = Number of columns the raster is to be split in.
         :param folder_names = The names of all the folders created for output.
     """
+    scale_rows = param["rows"]
+    scale_cols = param["cols"]
     logger.info('Cutting raster to smaller boxes.')
     print('------------------------- Cutting raster into smaller parts -------------------------')
     logger.debug('Value of scale_rows is %s', scale_rows)
-    logger.debug('Value of scale_columns is %s', scale_columns)
-    scale_rows = int(scale_rows)
-    scale_columns = int(scale_columns)
-    # Opening the raster file as a dataset.
-    dataset = gdal.Open(input_file)
-    # The number of columns in raster file.
-    columns_in_raster_file = dataset.RasterXSize
-    logger.debug('Columns in raster file = %s', columns_in_raster_file)
-    # The number of rows in raster file.
-    rows_in_raster_file = dataset.RasterYSize
-    logger.debug('Columns in raster file = %s', columns_in_raster_file)
+    logger.debug('Value of scale_columns is %s', scale_cols)
 
-    row_series = pd.Series(range(1, scale_rows + 1))
-    column_series = pd.Series(range(1, scale_columns + 1))
+    counter_files = 'A'
+    for input_file in paths["inputs"]:
+        # Opening the raster file as a dataset
+        dataset = gdal.Open(input_file)
+        logger.debug('Dealing with raster file = %s', input_file)
+        # The number of columns in raster file
+        columns_in_raster_file = dataset.RasterXSize
+        logger.debug('Columns in raster file = %s', columns_in_raster_file)
+        # The number of rows in raster file.
+        rows_in_raster_file = dataset.RasterYSize
+        logger.debug('Rows in raster file = %s', rows_in_raster_file)
 
-    # no of parts the map will be cut into.
-    total_map_parts = scale_rows * scale_columns
-    logger.debug('Total parts of map = %s', total_map_parts)
+        # no of parts the map will be cut into.
+        total_map_parts = scale_rows * scale_columns
+        logger.debug('Total parts of map = %s', total_map_parts)
+        columns_in_output_raster = int(columns_in_raster_file / scale_columns)
+        rows_in_output_raster = int(rows_in_raster_file / scale_rows)
 
-    # no of columns in every output raster after cutting.
-    columns_in_output_raster = int(columns_in_raster_file / scale_columns)
-    logger.debug('Columns in output raster = %s', columns_in_output_raster)
-
-    # no of rows in  every output raster after cutting
-    rows_in_output_raster = int(rows_in_raster_file / scale_rows)
-    logger.debug('Rows in output raster = %s', rows_in_output_raster)
-
-    counter = 1
-    gt = dataset.GetGeoTransform()
-    minx = gt[0]
-    maxy = gt[3]
-
-    logger.info('Cutting the raster into smaller boxes.')
-    for i in column_series.index + 1:
-        for j in row_series.index + 1:
-            # cuts the input rasters into n equal parts according to the values assigned as parts_of_map,
-            # columns_in_output_raster and rows_in_output_raster. gdal.Translate arguments are:(output_subset_file,
-            # input_file, the 4 corners of the square which is to be cut).
-            dc = gdal.Translate(folder_names['output_sub_rasters'] + 'sub_part_%d.tif' % counter, dataset,
-                                projWin=[minx + (i - 1) * columns_in_output_raster * gt[1], maxy - (j - 1) *
-                                         rows_in_output_raster * gt[1], minx + columns_in_output_raster * i * gt[1],
-                                         maxy - (j * rows_in_output_raster) * gt[1]])
-
-            print('Status: Created part: sub_part_' + str(counter) + '.')
-            logger.info('Created part: sub_part_%s', counter)
-            counter = counter + 1
+        counter = 1
+        gt = dataset.GetGeoTransform()
+        minx = gt[0]
+        maxy = gt[3]
+        
+        logger.info('Cutting the raster %s into smaller boxes.', counter_files)
+        for i in range(1, scale_columns + 1):
+            for j in range(1, scale_rows + 1):
+                # cuts the input rasters into n equal parts according to the values assigned as parts_of_map,
+                # columns_in_output_raster and rows_in_output_raster. gdal.Translate arguments are:(output_subset_file,
+                # input_file, the 4 corners of the square which is to be cut).
+                dc = gdal.Translate(paths['sub_rasters'] + counter_files + '_sub_part_%d.tif' % counter, dataset,
+                                    projWin=[minx + (i - 1) * columns_in_output_raster * gt[1], maxy - (j - 1) *
+                                             rows_in_output_raster * gt[1], minx + columns_in_output_raster * i * gt[1],
+                                             maxy - (j * rows_in_output_raster) * gt[1]])
+        
+                print('Status: Created part: ' + counter_files + '_sub_part_' + str(counter))
+                logger.info('Created part: ' + counter_files + '_sub_part_%s', counter)
+                counter = counter + 1
+		counter_files = chr(ord(counter_files) + 1)
 
     # Writing the data related to map parts to csv file for further use.
-    df_vd = pd.DataFrame(data={'map_parts_total': [total_map_parts], 'output_raster_columns': columns_in_output_raster,
+    df_vd = pd.DataFrame(data={'map_parts_total': total_map_parts,
+	                           'output_raster_columns': columns_in_output_raster,
                                'output_raster_rows': rows_in_output_raster})
     logger.debug('Created dataframe from parts_of_map.csv %s', df_vd)
     logger.info('Writing csv file parts_of_map.csv')
-    df_vd.to_csv(folder_names['other_files'] + 'parts_of_map.csv')
+    df_vd.to_csv(paths["OUT"] + 'parts_of_map.csv')
     del dataset
-
     print('------------------------- == -------------------------')
 
-    return True
 
 
 def identify_number_of_optimum_clusters(folder_names):
@@ -968,49 +960,21 @@ def eq_solver(coef, ll_point, ul_point, ur_point):
     return f
 
 
-def get_type():
-    """
-    This function gets the type of the args.type by converting it to lower case.
-    :return:
-    """
-    args.type = args.type.lower()
-
-
 if __name__ == '__main__':
-    print('------------------------- Starting Clustering -------------------------')
-    current_time = datetime.datetime.now()
-    formatted_time = current_time.strftime("%Y-%m-%d_%H:%M:%S")
-    print('Started at: ' + formatted_time)
+    paths, param = initialization()
+    cut_raster_file_to_smaller_boxes(param, paths)
 
-    get_type()
 
-    time_folder = current_time.strftime("%Y-%m-%d_%H%M%S")
-    # If you want to use existing folder, input timestamp of that folder in line below and uncomment it.
-    # time_folder = '2019-05-30_141525'
-    folders = create_folders_for_output(args.inputfile, time_folder)
+    #result = choose_reference_values(folders)
 
-    #  Setting basic config for logger.
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s [%(levelname)s] - %(message)s',
-        filename=folders['main_folder'] + 'log.txt')  # pass explicit filename here
-    logger = logging.getLogger()
+    #result = identify_number_of_optimum_clusters(folders)
 
-    if args.rows and args.cols:
-        result = cut_raster_file_to_smaller_boxes(args.inputfile, folders, args.rows, args.cols)
-    else:
-        result = cut_raster_file_to_smaller_boxes(args.inputfile, folders)
+    #result = k_means_clustering(folders)
 
-    result = choose_reference_values(folders)
+    #result = polygonize_after_k_means(folders)
 
-    result = identify_number_of_optimum_clusters(folders)
+    #result = max_p_algorithm(folders)
 
-    result = k_means_clustering(folders)
-
-    result = polygonize_after_k_means(folders)
-
-    result = max_p_algorithm(folders)
-
-    result = max_p_algorithm_2(folders)
+    #result = max_p_algorithm_2(folders)
 
     print('----------------------------- END --------------------------------')
