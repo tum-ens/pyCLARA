@@ -1,4 +1,7 @@
 from pathlib import Path
+import os
+import datetime
+import logging
 
 # This program does clustering of high resolution raster files using k-means and max-p algorithm
 
@@ -33,19 +36,12 @@ paths["inputs_sum"] = []
 paths["inputs_density"] = [root + "01 Raw inputs" + fs + "Maps" + fs + "Global maps" + fs + "Other" + fs + "HeatDemand_MRM.tif"]
 paths["inputs"] =  paths["inputs_mean"] + paths["inputs_sum"] + paths["inputs_density"]
 
-# Check whether the inputs are correct
-for input_file in paths["inputs"]:
-    if not os.path.isfile(input_file):
-        return 'file_does_not_exist'
-    elif not input_file.endswith('.tif'):
-        return 'file_is_not_raster'
-
 		
 ## Output Folders
 timestamp = str(datetime.datetime.now().strftime("%Y%m%dT%H%M%S"))
 # If you want to use existing folder, input timestamp of that folder in line below and uncomment it.
 timestamp = "20190617T142740"
-paths["OUT"] = root + "02 Shapefiles for regions" + fs + "Clustering outputs" + fs region + fs + timestamp + fs
+paths["OUT"] = root + "02 Shapefiles for regions" + fs + "Clustering outputs" + fs + region + fs + timestamp + fs
 if not os.path.isdir(paths["OUT"]):
     os.mkdir(paths["OUT"])
 

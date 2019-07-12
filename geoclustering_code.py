@@ -19,15 +19,176 @@ import libpysal
 from math import sqrt, exp
 import datetime
 import pprint
-import logging
+import sys
+#import logging
 
 
 def initialization():
-    print('------------------------- Starting Clustering -------------------------')
-    print('Started at: ' + formatted_time)
+    current_date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    print('This part started at: ' + current_date_time)
+    
     from config import paths, param, logger
-	
+    logger.info('Started at:' + current_date_time)
+    
+    # Check whether the inputs are correct
+    if not len(paths["inputs"]):
+        print('no input file given!')
+        sys.exit(0)
+    for input_file in paths["inputs"]:
+        if not os.path.isfile(input_file):
+            print('file does not_exist!')
+            sys.exit(0)
+        elif not input_file.endswith('.tif'):
+            print('file is not raster!')
+            sys.exit(0)
+    
     return paths, param, logger
+    
+    
+def cut_raster_file_to_smaller_boxes(param, paths):
+    """This function converts the raster file into a m*n boxes with m rows and n columns.
+        :param param = The parameters from config.py
+        :param paths = The paths to the rasters and to the output folders, from config.py
+    """
+    scale_rows = param["rows"]
+    scale_cols = param["cols"]
+    logger.info('Cutting raster to smaller boxes.')
+    print('------------------------- Cutting raster into smaller parts -------------------------')
+    logger.debug('Value of scale_rows is %s', scale_rows)
+    logger.debug('Value of scale_columns is %s', scale_cols)
+
+    counter_files = 'A'
+    for input_file in paths["inputs"]:
+        # Opening the raster file as a dataset
+        dataset = gdal.Open(input_file)
+        logger.debug('Dealing with raster file = %s', input_file)
+        # The number of columns in raster file
+        columns_in_raster_file = dataset.RasterXSize
+        logger.debug('Columns in raster file = %s', columns_in_raster_file)
+        # The number of rows in raster file.
+        rows_in_raster_file = dataset.RasterYSize
+        logger.debug('Rows in raster file = %s', rows_in_raster_file)
+
+        # no of parts the map will be cut into.
+        total_map_parts = scale_rows * scale_cols
+        logger.debug('Total parts of map = %s', total_map_parts)
+        columns_in_output_raster = int(columns_in_raster_file / scale_cols)
+        rows_in_output_raster = int(rows_in_raster_file / scale_rows)
+
+        counter = 1
+        gt = dataset.GetGeoTransform()
+        minx = gt[0]
+        maxy = gt[3]
+        
+        logger.info('Cutting the raster %s into smaller boxes.', counter_files)
+        for i in range(1, scale_cols + 1):
+            for j in range(1, scale_rows + 1):
+                # cuts the input rasters into n equal parts according to the values assigned as parts_of_map,
+                # columns_in_output_raster and rows_in_output_raster. gdal.Translate arguments are:(output_subset_file,
+                # input_file, the 4 corners of the square which is to be cut).
+                dc = gdal.Translate(paths['sub_rasters'] + counter_files + '_sub_part_%d.tif' % counter, dataset,
+                                    projWin=[minx + (i - 1) * columns_in_output_raster * gt[1], maxy - (j - 1) *
+                                             rows_in_output_raster * gt[1], minx + columns_in_output_raster * i * gt[1],
+                                             maxy - (j * rows_in_output_raster) * gt[1]])
+        
+                print('Status: Created part: ' + counter_files + '_sub_part_' + str(counter))
+                logger.info('Created part: ' + counter_files + '_sub_part_%s', counter)
+                counter = counter + 1
+        counter_files = chr(ord(counter_files) + 1)
+
+    # Writing the data related to map parts to csv file for further use.
+    df_vd = pd.DataFrame(data={'map_parts_total': total_map_parts,
+	                           'output_raster_columns': columns_in_output_raster,
+                               'output_raster_rows': rows_in_output_raster}, index=[0])
+    logger.debug('Created dataframe from parts_of_map.csv %s', df_vd)
+    logger.info('Writing csv file parts_of_map.csv')
+    df_vd.to_csv(paths["OUT"] + 'parts_of_map.csv', index=False)
+    del dataset
+    print('------------------------- == -------------------------')
+    
+    
+def choose_reference_values(folder_names):
+    """This function chooses the reference part for the function identify_number_of_optimum_clusters.
+    The reference part is chosen based on size. The part with the largest size is chosen.
+    The reference standard deviation is calculated by taking the average of standard deviation from all parts.
+    :param folder_names = The names of all the folders created for output.
+    """
+    print('------------------------- Choosing reference values ------------------------- ')
+
+    current_date_time = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    print('This part started at: ' + current_date_time)
+    logger.info('"choose_reference_values". Started at:' + current_date_time)
+
+    non_empty_rasters = pd.DataFrame(columns=['size', 'std', 'rel_size', 'rel_std', 'prod_size_std', 'ratio_size_std'])
+
+    # Reading csv file to get total parts of map.
+    logger.info('Reading csv file parts_of_map.csv')
+    map_df = pd.read_csv(folder_names['other_files'] + 'parts_of_map.csv', index_col=0)
+    map_parts = map_df['map_parts_total'].values[0]
+    parts_of_map = int(map_parts)
+    logger.debug('Total parts of map:' + str(parts_of_map))
+
+    no_of_parts_of_map = pd.Series(range(1, parts_of_map))
+
+    logger.info('Getting size and std of every raster part.')
+    for i in no_of_parts_of_map.index + 1:
+        file = folder_names['output_sub_rasters'] + 'sub_part_%d.tif' % i
+        dataset = gdal.Open(file)
+        band_raster = dataset.GetRasterBand(1)
+        array_raster = band_raster.ReadAsArray()
+        array_raster[array_raster <= 0] = np.nan
+        if np.sum(~np.isnan(array_raster)) == 0:
+            continue
+
+        array_raster = array_raster.flatten()
+        array_raster = array_raster[~np.isnan(array_raster)]
+
+        size_raster = len(array_raster)
+        std_raster = array_raster.std(axis=0)
+
+        logger.debug('Size of part ' + str(i) + '=' + str(size_raster) + '.')
+        logger.debug('Std of part ' + str(i) + '=' + str(std_raster) + '.')
+        non_empty_rasters.loc[i, ['size', 'std']] = (size_raster, std_raster)
+
+    logger.info('Calculating relative size, relative std, product of relative size and relative std and four extreme '
+                'corners of data cloud.')
+    non_empty_rasters['rel_size'] = non_empty_rasters['size'] / non_empty_rasters['size'].max()
+    non_empty_rasters['rel_std'] = non_empty_rasters['std'] / non_empty_rasters['std'].max()
+    non_empty_rasters['prod_size_std'] = non_empty_rasters['rel_size'] * non_empty_rasters['rel_std']
+    non_empty_rasters['ul_corner'] = np.exp((-non_empty_rasters['rel_size'] + non_empty_rasters['rel_std']).astype(float))
+    non_empty_rasters['ur_corner'] = np.exp((non_empty_rasters['rel_size'] + non_empty_rasters['rel_std']).astype(float))
+    non_empty_rasters['ll_corner'] = np.exp((-non_empty_rasters['rel_size'] - non_empty_rasters['rel_std']).astype(float))
+    non_empty_rasters['lr_corner'] = np.exp((non_empty_rasters['rel_size'] - non_empty_rasters['rel_std']).astype(float))
+
+    # Writes the numbers of non-empty raster files to csv.
+    logger.info('Writing csv file "non_empty_rasters.csv".')
+    print('Status: Writing csv file "non_empty_rasters.csv".')
+    non_empty_rasters.to_csv(folder_names['main_folder'] + 'non_empty_rasters.csv')
+
+    # Finding the part with the maximum relative size x relative std.
+    logger.info('Finding the part with the maximum relative size x relative std.')
+    ref_part = \
+        non_empty_rasters.loc[
+            non_empty_rasters['prod_size_std'] == non_empty_rasters['prod_size_std'].max()].index.values[
+            0]
+
+    logger.debug('Chosen ref part: ' + str(ref_part) + '.tif')
+    print('The chosen reference part is: sub_part_' + str(ref_part) + '.tif')
+
+    # Writing the values needed to a csv file in order to make this part independent of others.
+    logger.info('Writing csv file "ref_part_and_max_values.csv".')
+    df_vd = pd.DataFrame(data={'ref_part_name': [str(ref_part)], 'size_max': [non_empty_rasters['size'].max()],
+                               'std_max': [non_empty_rasters['std'].max()]})
+    df_vd.to_csv(folder_names['other_files'] + 'ref_part_and_max_values.csv')
+
+    current_date_time = datetime.datetime.now()
+    format_time = current_date_time.strftime("%Y-%m-%d_%H:%M:%S")
+    print('------------------------- == -------------------------')
+    print('This part finished at: ' + format_time)
+    print('------------------------- == -------------------------')
+    logger.info('"choose_reference_values" finished at: ' + format_time)
+
+    return True
 	
 
 def array_to_raster(array, destination_file, input_raster_file):
@@ -111,108 +272,6 @@ class OptimumPoint:
         num = abs(y_diff * self.x - x_diff * self.y + p2.x * p1.y - p2.y * p1.x)
         den = sqrt(y_diff ** 2 + x_diff ** 2)
         return num / den
-
-
-def create_folders_for_output(input_file, folder_time):
-    """This function reads the Input file and creates folders necessary for output.
-    :param input_file = File name with a relative path to the script should be given as a string.
-                        It should be a high resolution raster(.tif).
-    :param folder_time = Time stamp for folder.
-    """
-
-    if not os.path.isfile(input_file):
-        return 'file_does_not_exist'
-    elif not input_file.endswith('.tif'):
-        return 'file_is_not_raster'
-    else:
-        output_sub_rasters = './Results_' + folder_time + '/output_sub_rasters/'
-        output_k_means = './Results_' + folder_time + '/output_k_means/'
-        output_parts_max_p = './Results_' + folder_time + '/output_parts_max_p/'
-        final_output = './Results_' + folder_time + '/final_output/'
-        output_polygons = './Results_' + folder_time + '/output_polygons/'
-        other_files = './Results_' + folder_time + '/other_files/'
-        main_folder = './Results_' + folder_time + '/'
-
-        try:
-            os.makedirs(output_sub_rasters)
-            os.makedirs(output_k_means)
-            os.makedirs(output_parts_max_p)
-            os.makedirs(final_output)
-            os.makedirs(output_polygons)
-            os.makedirs(other_files)
-        except FileExistsError:
-            # directory already exists
-            pass
-
-        folder_names = {'output_sub_rasters': output_sub_rasters, 'output_k_means': output_k_means,
-                        'output_parts_max_p': output_parts_max_p, 'final_output': final_output, 'other_files': other_files,
-                        'output_polygons': output_polygons, 'main_folder': main_folder}
-        return folder_names
-
-
-def cut_raster_file_to_smaller_boxes(input_file, folder_names, scale_rows=10, scale_columns=10): cut_raster_file_to_smaller_boxes(param, paths)
-    """This function converts the raster file into a m*n boxes with m rows and n columns.
-        :param input_file = The input wind file.
-        :param scale_rows = Number of rows the raster is to be split in.
-        :param scale_columns = Number of columns the raster is to be split in.
-        :param folder_names = The names of all the folders created for output.
-    """
-    scale_rows = param["rows"]
-    scale_cols = param["cols"]
-    logger.info('Cutting raster to smaller boxes.')
-    print('------------------------- Cutting raster into smaller parts -------------------------')
-    logger.debug('Value of scale_rows is %s', scale_rows)
-    logger.debug('Value of scale_columns is %s', scale_cols)
-
-    counter_files = 'A'
-    for input_file in paths["inputs"]:
-        # Opening the raster file as a dataset
-        dataset = gdal.Open(input_file)
-        logger.debug('Dealing with raster file = %s', input_file)
-        # The number of columns in raster file
-        columns_in_raster_file = dataset.RasterXSize
-        logger.debug('Columns in raster file = %s', columns_in_raster_file)
-        # The number of rows in raster file.
-        rows_in_raster_file = dataset.RasterYSize
-        logger.debug('Rows in raster file = %s', rows_in_raster_file)
-
-        # no of parts the map will be cut into.
-        total_map_parts = scale_rows * scale_columns
-        logger.debug('Total parts of map = %s', total_map_parts)
-        columns_in_output_raster = int(columns_in_raster_file / scale_columns)
-        rows_in_output_raster = int(rows_in_raster_file / scale_rows)
-
-        counter = 1
-        gt = dataset.GetGeoTransform()
-        minx = gt[0]
-        maxy = gt[3]
-        
-        logger.info('Cutting the raster %s into smaller boxes.', counter_files)
-        for i in range(1, scale_columns + 1):
-            for j in range(1, scale_rows + 1):
-                # cuts the input rasters into n equal parts according to the values assigned as parts_of_map,
-                # columns_in_output_raster and rows_in_output_raster. gdal.Translate arguments are:(output_subset_file,
-                # input_file, the 4 corners of the square which is to be cut).
-                dc = gdal.Translate(paths['sub_rasters'] + counter_files + '_sub_part_%d.tif' % counter, dataset,
-                                    projWin=[minx + (i - 1) * columns_in_output_raster * gt[1], maxy - (j - 1) *
-                                             rows_in_output_raster * gt[1], minx + columns_in_output_raster * i * gt[1],
-                                             maxy - (j * rows_in_output_raster) * gt[1]])
-        
-                print('Status: Created part: ' + counter_files + '_sub_part_' + str(counter))
-                logger.info('Created part: ' + counter_files + '_sub_part_%s', counter)
-                counter = counter + 1
-		counter_files = chr(ord(counter_files) + 1)
-
-    # Writing the data related to map parts to csv file for further use.
-    df_vd = pd.DataFrame(data={'map_parts_total': total_map_parts,
-	                           'output_raster_columns': columns_in_output_raster,
-                               'output_raster_rows': rows_in_output_raster})
-    logger.debug('Created dataframe from parts_of_map.csv %s', df_vd)
-    logger.info('Writing csv file parts_of_map.csv')
-    df_vd.to_csv(paths["OUT"] + 'parts_of_map.csv')
-    del dataset
-    print('------------------------- == -------------------------')
-
 
 
 def identify_number_of_optimum_clusters(folder_names):
@@ -795,89 +854,7 @@ def find_neighbors_in_shape_file(folder_names, existing_neighbors):
     return neighbors_corrected
 
 
-def choose_reference_values(folder_names):
-    """This function chooses the reference part for the function identify_number_of_optimum_clusters.
-    The reference part is chosen based on size. The part with the largest size is chosen.
-    The reference standard deviation is calculated by taking the average of standard deviation from all parts.
-    :param folder_names = The names of all the folders created for output.
-    """
-    print('------------------------- Choosing reference values ------------------------- ')
 
-    current_date_time = datetime.datetime.now()
-    format_time = current_date_time.strftime("%Y-%m-%d_%H:%M:%S")
-    print('This part started at: ' + format_time)
-    logger.info('"choose_reference_values". Started at:' + format_time)
-
-    non_empty_rasters = pd.DataFrame(columns=['size', 'std', 'rel_size', 'rel_std', 'prod_size_std', 'ratio_size_std'])
-
-    # Reading csv file to get total parts of map.
-    logger.info('Reading csv file parts_of_map.csv')
-    map_df = pd.read_csv(folder_names['other_files'] + 'parts_of_map.csv', index_col=0)
-    map_parts = map_df['map_parts_total'].values[0]
-    parts_of_map = int(map_parts)
-    logger.debug('Total parts of map:' + str(parts_of_map))
-
-    no_of_parts_of_map = pd.Series(range(1, parts_of_map))
-
-    logger.info('Getting size and std of every raster part.')
-    for i in no_of_parts_of_map.index + 1:
-        file = folder_names['output_sub_rasters'] + 'sub_part_%d.tif' % i
-        dataset = gdal.Open(file)
-        band_raster = dataset.GetRasterBand(1)
-        array_raster = band_raster.ReadAsArray()
-        array_raster[array_raster <= 0] = np.nan
-        if np.sum(~np.isnan(array_raster)) == 0:
-            continue
-
-        array_raster = array_raster.flatten()
-        array_raster = array_raster[~np.isnan(array_raster)]
-
-        size_raster = len(array_raster)
-        std_raster = array_raster.std(axis=0)
-
-        logger.debug('Size of part ' + str(i) + '=' + str(size_raster) + '.')
-        logger.debug('Std of part ' + str(i) + '=' + str(std_raster) + '.')
-        non_empty_rasters.loc[i, ['size', 'std']] = (size_raster, std_raster)
-
-    logger.info('Calculating relative size, relative std, product of relative size and relative std and four extreme '
-                'corners of data cloud.')
-    non_empty_rasters['rel_size'] = non_empty_rasters['size'] / non_empty_rasters['size'].max()
-    non_empty_rasters['rel_std'] = non_empty_rasters['std'] / non_empty_rasters['std'].max()
-    non_empty_rasters['prod_size_std'] = non_empty_rasters['rel_size'] * non_empty_rasters['rel_std']
-    non_empty_rasters['ul_corner'] = np.exp((-non_empty_rasters['rel_size'] + non_empty_rasters['rel_std']).astype(float))
-    non_empty_rasters['ur_corner'] = np.exp((non_empty_rasters['rel_size'] + non_empty_rasters['rel_std']).astype(float))
-    non_empty_rasters['ll_corner'] = np.exp((-non_empty_rasters['rel_size'] - non_empty_rasters['rel_std']).astype(float))
-    non_empty_rasters['lr_corner'] = np.exp((non_empty_rasters['rel_size'] - non_empty_rasters['rel_std']).astype(float))
-
-    # Writes the numbers of non-empty raster files to csv.
-    logger.info('Writing csv file "non_empty_rasters.csv".')
-    print('Status: Writing csv file "non_empty_rasters.csv".')
-    non_empty_rasters.to_csv(folder_names['main_folder'] + 'non_empty_rasters.csv')
-
-    # Finding the part with the maximum relative size x relative std.
-    logger.info('Finding the part with the maximum relative size x relative std.')
-    ref_part = \
-        non_empty_rasters.loc[
-            non_empty_rasters['prod_size_std'] == non_empty_rasters['prod_size_std'].max()].index.values[
-            0]
-
-    logger.debug('Chosen ref part: ' + str(ref_part) + '.tif')
-    print('The chosen reference part is: sub_part_' + str(ref_part) + '.tif')
-
-    # Writing the values needed to a csv file in order to make this part independent of others.
-    logger.info('Writing csv file "ref_part_and_max_values.csv".')
-    df_vd = pd.DataFrame(data={'ref_part_name': [str(ref_part)], 'size_max': [non_empty_rasters['size'].max()],
-                               'std_max': [non_empty_rasters['std'].max()]})
-    df_vd.to_csv(folder_names['other_files'] + 'ref_part_and_max_values.csv')
-
-    current_date_time = datetime.datetime.now()
-    format_time = current_date_time.strftime("%Y-%m-%d_%H:%M:%S")
-    print('------------------------- == -------------------------')
-    print('This part finished at: ' + format_time)
-    print('------------------------- == -------------------------')
-    logger.info('"choose_reference_values" finished at: ' + format_time)
-
-    return True
 
 
 def get_x_y_values(folder_names):
@@ -961,7 +938,8 @@ def eq_solver(coef, ll_point, ul_point, ur_point):
 
 
 if __name__ == '__main__':
-    paths, param = initialization()
+    print('------------------------- Starting Clustering -------------------------')
+    paths, param, logger = initialization()
     cut_raster_file_to_smaller_boxes(param, paths)
 
 
