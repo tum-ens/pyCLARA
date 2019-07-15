@@ -1,7 +1,7 @@
 import pandas as pd
 import geopandas as gpd
 import numpy as np
-from osgeo import gdal, ogr, osr
+from osgeo import gdal
 from scipy.optimize import fsolve
 import os
 import pysal as ps
@@ -20,7 +20,7 @@ from math import sqrt, exp
 import datetime
 import pprint
 import sys
-#import logging
+from helping_functions import *
 
 
 def initialization():
@@ -41,6 +41,14 @@ def initialization():
         elif not input_file.endswith('.tif'):
             print('file is not raster!')
             sys.exit(0)
+            
+    # Create dataframe for input stats
+    df = pd.DataFrame(index=['map_parts_total', 'output_raster_columns', 'output_raster_rows', # from cut_raster_file_to_smaller_boxes
+                             'ref_part_name', 'size_max', 'std_max',
+                             'max_no_of_cl'],
+                      columns=['value'])
+    if not os.path.exists(paths["OUT"] + 'input_stats.csv'):
+        df.to_csv(paths["OUT"] + 'input_stats.csv', sep=';', decimal=',')
     
     return paths, param, logger
     
@@ -96,22 +104,23 @@ def cut_raster_file_to_smaller_boxes(param, paths):
                 counter = counter + 1
         counter_files = chr(ord(counter_files) + 1)
 
-    # Writing the data related to map parts to csv file for further use.
-    df_vd = pd.DataFrame(data={'map_parts_total': total_map_parts,
-	                           'output_raster_columns': columns_in_output_raster,
-                               'output_raster_rows': rows_in_output_raster}, index=[0])
-    logger.debug('Created dataframe from parts_of_map.csv %s', df_vd)
-    logger.info('Writing csv file parts_of_map.csv')
-    df_vd.to_csv(paths["OUT"] + 'parts_of_map.csv', index=False)
+    # Writing the data related to map parts to input_stats.csv file for further use.
+    df = pd.read_csv(paths["OUT"] + 'input_stats.csv', sep=';', decimal=',', index_col=0)
+    df.loc['map_parts_total', 'value'] = total_map_parts
+    df.loc['output_raster_columns', 'value'] = columns_in_output_raster
+    df.loc['output_raster_rows', 'value'] = rows_in_output_raster
+    logger.info('Writing data in csv file input_stats.csv')
+    df.to_csv(paths["OUT"] + 'input_stats.csv', sep=';', decimal=',')
     del dataset
     print('------------------------- == -------------------------')
     
     
-def choose_reference_values(folder_names):
+def choose_reference_values(param, paths):
     """This function chooses the reference part for the function identify_number_of_optimum_clusters.
-    The reference part is chosen based on size. The part with the largest size is chosen.
-    The reference standard deviation is calculated by taking the average of standard deviation from all parts.
-    :param folder_names = The names of all the folders created for output.
+    The reference part is chosen based on the product of relative size and relative standard deviation.
+    The part with the largest product in all the input files is chosen.
+        :param param = The parameters from config.py
+        :param paths = The paths to the rasters and to the output folders, from config.py
     """
     print('------------------------- Choosing reference values ------------------------- ')
 
@@ -119,67 +128,69 @@ def choose_reference_values(folder_names):
     print('This part started at: ' + current_date_time)
     logger.info('"choose_reference_values". Started at:' + current_date_time)
 
-    non_empty_rasters = pd.DataFrame(columns=['size', 'std', 'rel_size', 'rel_std', 'prod_size_std', 'ratio_size_std'])
+    non_empty_rasters = pd.DataFrame(columns=['size', 'std', 'rel_size', 'rel_std', 'prod_size_std'],
+                                     index=pd.MultiIndex(levels=[[],[]], codes=[[],[]], names=[u'file', u'part']))
 
     # Reading csv file to get total parts of map.
-    logger.info('Reading csv file parts_of_map.csv')
-    map_df = pd.read_csv(folder_names['other_files'] + 'parts_of_map.csv', index_col=0)
-    map_parts = map_df['map_parts_total'].values[0]
-    parts_of_map = int(map_parts)
+    logger.info('Reading csv file input_stats.csv')
+    df = pd.read_csv(paths["OUT"] + 'input_stats.csv', sep=';', decimal=',', index_col=0)
+    parts_of_map = int(df.loc['map_parts_total', 'value'])
     logger.debug('Total parts of map:' + str(parts_of_map))
 
-    no_of_parts_of_map = pd.Series(range(1, parts_of_map))
-
     logger.info('Getting size and std of every raster part.')
-    for i in no_of_parts_of_map.index + 1:
-        file = folder_names['output_sub_rasters'] + 'sub_part_%d.tif' % i
-        dataset = gdal.Open(file)
-        band_raster = dataset.GetRasterBand(1)
-        array_raster = band_raster.ReadAsArray()
-        array_raster[array_raster <= 0] = np.nan
-        if np.sum(~np.isnan(array_raster)) == 0:
-            continue
-
-        array_raster = array_raster.flatten()
-        array_raster = array_raster[~np.isnan(array_raster)]
-
-        size_raster = len(array_raster)
-        std_raster = array_raster.std(axis=0)
-
-        logger.debug('Size of part ' + str(i) + '=' + str(size_raster) + '.')
-        logger.debug('Std of part ' + str(i) + '=' + str(std_raster) + '.')
-        non_empty_rasters.loc[i, ['size', 'std']] = (size_raster, std_raster)
-
-    logger.info('Calculating relative size, relative std, product of relative size and relative std and four extreme '
-                'corners of data cloud.')
-    non_empty_rasters['rel_size'] = non_empty_rasters['size'] / non_empty_rasters['size'].max()
-    non_empty_rasters['rel_std'] = non_empty_rasters['std'] / non_empty_rasters['std'].max()
-    non_empty_rasters['prod_size_std'] = non_empty_rasters['rel_size'] * non_empty_rasters['rel_std']
-    non_empty_rasters['ul_corner'] = np.exp((-non_empty_rasters['rel_size'] + non_empty_rasters['rel_std']).astype(float))
-    non_empty_rasters['ur_corner'] = np.exp((non_empty_rasters['rel_size'] + non_empty_rasters['rel_std']).astype(float))
-    non_empty_rasters['ll_corner'] = np.exp((-non_empty_rasters['rel_size'] - non_empty_rasters['rel_std']).astype(float))
-    non_empty_rasters['lr_corner'] = np.exp((non_empty_rasters['rel_size'] - non_empty_rasters['rel_std']).astype(float))
+    counter_files = 'A'
+    for input_file in paths["inputs"]:
+        for i in range(1, parts_of_map + 1):
+            file = paths["sub_rasters"] + counter_files + '_sub_part_%d.tif' % i
+            dataset = gdal.Open(file)
+            band_raster = dataset.GetRasterBand(1)
+            array_raster = band_raster.ReadAsArray()
+            array_raster[array_raster < param["minimum_valid"]] = np.nan
+            if np.sum(~np.isnan(array_raster)) == 0:
+                continue
+        
+            array_raster = array_raster.flatten()
+            array_raster = array_raster[~np.isnan(array_raster)]
+        
+            size_raster = len(array_raster)
+            std_raster = array_raster.std(axis=0)
+        
+            logger.debug('Size of part ' + counter_files + str(i) + '=' + str(size_raster))
+            logger.debug('Std of part ' + counter_files + str(i) + '=' + str(std_raster))
+            non_empty_rasters.loc[(counter_files, i), ['size', 'std']] = (size_raster, std_raster)
+        
+        logger.info('Calculating relative size, relative std, product of relative size and relative std and four extreme '
+                    'corners of data cloud.')
+        non_empty_rasters['rel_size'] = non_empty_rasters['size'] / non_empty_rasters['size'].max()
+        non_empty_rasters['rel_std'] = non_empty_rasters['std'] / non_empty_rasters['std'].max()
+        non_empty_rasters['prod_size_std'] = non_empty_rasters['rel_size'] * non_empty_rasters['rel_std']
+        non_empty_rasters['ul_corner'] = np.exp((-non_empty_rasters['rel_size'] + non_empty_rasters['rel_std']).astype(float))
+        non_empty_rasters['ur_corner'] = np.exp((non_empty_rasters['rel_size'] + non_empty_rasters['rel_std']).astype(float))
+        non_empty_rasters['ll_corner'] = np.exp((-non_empty_rasters['rel_size'] - non_empty_rasters['rel_std']).astype(float))
+        non_empty_rasters['lr_corner'] = np.exp((non_empty_rasters['rel_size'] - non_empty_rasters['rel_std']).astype(float))
+        counter_files = chr(ord(counter_files) + 1)
 
     # Writes the numbers of non-empty raster files to csv.
     logger.info('Writing csv file "non_empty_rasters.csv".')
     print('Status: Writing csv file "non_empty_rasters.csv".')
-    non_empty_rasters.to_csv(folder_names['main_folder'] + 'non_empty_rasters.csv')
+    non_empty_rasters = non_empty_rasters.astype('float64')
+    non_empty_rasters.to_csv(paths["OUT"] + 'non_empty_rasters.csv', sep=';', decimal=',')
 
     # Finding the part with the maximum relative size x relative std.
     logger.info('Finding the part with the maximum relative size x relative std.')
-    ref_part = \
-        non_empty_rasters.loc[
-            non_empty_rasters['prod_size_std'] == non_empty_rasters['prod_size_std'].max()].index.values[
-            0]
+    group_by_part = non_empty_rasters.reset_index(inplace=False)
+    group_by_part = group_by_part.groupby(['part']).prod()
+    ref_part = group_by_part.loc[group_by_part['prod_size_std'] == group_by_part['prod_size_std'].max()].index.values[0]
 
     logger.debug('Chosen ref part: ' + str(ref_part) + '.tif')
     print('The chosen reference part is: sub_part_' + str(ref_part) + '.tif')
 
-    # Writing the values needed to a csv file in order to make this part independent of others.
-    logger.info('Writing csv file "ref_part_and_max_values.csv".')
-    df_vd = pd.DataFrame(data={'ref_part_name': [str(ref_part)], 'size_max': [non_empty_rasters['size'].max()],
-                               'std_max': [non_empty_rasters['std'].max()]})
-    df_vd.to_csv(folder_names['other_files'] + 'ref_part_and_max_values.csv')
+    # Writing the data related to the reference part to input_stats.csv file for further use.
+    df.loc['ref_part_name', 'value'] = ref_part
+    df.loc['size_max', 'value'] = non_empty_rasters['size'].max()
+    df.loc['std_max', 'value'] = non_empty_rasters['std'].max()
+    logger.info('Writing data in csv file input_stats.csv')
+    df.to_csv(paths["OUT"] + 'input_stats.csv', sep=';', decimal=',')
 
     current_date_time = datetime.datetime.now()
     format_time = current_date_time.strftime("%Y-%m-%d_%H:%M:%S")
@@ -187,194 +198,124 @@ def choose_reference_values(folder_names):
     print('This part finished at: ' + format_time)
     print('------------------------- == -------------------------')
     logger.info('"choose_reference_values" finished at: ' + format_time)
-
-    return True
 	
 
-def array_to_raster(array, destination_file, input_raster_file):
-    """This function changes from array back to raster (used after kmeans algorithm).
-    :param array = The array which needs to be converted into a raster.
-    :param destination_file = The file name with which the created raster file is saved.
-    :param input_raster_file = The original input raster file from which the original coordinates are taken to convert
-                               the array back to raster.
-    """
-    logger.info('Converting array to raster.')
-
-    logger.info('Opening raster file {}'.format(input_raster_file))
-    source_raster = gdal.Open(input_raster_file)
-    (upper_left_x, x_size, x_rotation, upper_left_y, y_rotation, y_size) = source_raster.GetGeoTransform()
-
-    x_pixels = source_raster.RasterXSize  # number of pixels in x
-    logger.debug('x-pixels: %s', x_pixels)
-    y_pixels = source_raster.RasterYSize  # number of pixels in y
-    logger.debug('y-pixels: %s', y_pixels)
-    pixel_size = x_size  # size of the pixel...
-    logger.debug('pixel_size : %s', pixel_size)
-
-    x_min = upper_left_x
-    y_max = upper_left_y  # x_min & y_max are like the "top left" corner.
-    wkt_projection = source_raster.GetProjection()
-    driver = gdal.GetDriverByName('GTiff')
-
-    logger.info('Creating file: : %s', destination_file)
-    dataset = driver.Create(destination_file, x_pixels, y_pixels, 1, gdal.GDT_Float32, )
-    dataset.SetGeoTransform((x_min, pixel_size, 0, y_max, 0, -pixel_size))
-    dataset.SetProjection(wkt_projection)
-    dataset.GetRasterBand(1).WriteArray(array)
-    dataset.FlushCache()  # Write to disk.
-
-    return dataset, dataset.GetRasterBand(1)  # If you need to return, remember to return
-
-
-def polygonize(input_file, output_shape_file, column_name):
-    """This function is used to change from a raster to polygons as max-p algorithm only works with polygons.
-    :param input_file = The file which needs to be converted to a polygon from a raster.
-    :param output_shape_file = The shape file which is generated after polygonization.
-    :param column_name = The column name, the values from which are used for conversion.
-    """
-    logger.info('Polygonizing')
-
-    logger.info('Input file is: : %s', input_file)
-    source_raster = gdal.Open(input_file)
-    band = source_raster.GetRasterBand(1)
-    driver = ogr.GetDriverByName("ESRI Shapefile")
-    if os.path.exists(output_shape_file):
-        logger.info('Deleting data source: : %s', output_shape_file)
-        driver.DeleteDataSource(output_shape_file)
-
-    out_data_source = driver.CreateDataSource(output_shape_file + '.shp')
-    srs = osr.SpatialReference()
-    srs.ImportFromWkt(source_raster.GetProjectionRef())
-    out_layer = out_data_source.CreateLayer(output_shape_file, srs)
-    new_field = ogr.FieldDefn(column_name, ogr.OFTReal)
-    out_layer.CreateField(new_field)
-    logger.info('Creating polygon layer from raster.')
-    gdal.Polygonize(band, None, out_layer, 0, [], callback=None)
-    out_data_source.Destroy()
-
-
-# This class is used in the elbow method to identify the maximum distance between the end point and the start point of
-# the curve created between no. of clusters and inertia.
-class OptimumPoint:
-    def __init__(self, init_x, init_y):
-        self.x = init_x
-        self.y = init_y
-
-    def get_x(self):
-        return self.x
-
-    def get_y(self):
-        return self.y
-
-    def distance_to_line(self, p1, p2):
-        x_diff = p2.x - p1.x
-        y_diff = p2.y - p1.y
-        num = abs(y_diff * self.x - x_diff * self.y + p2.x * p1.y - p2.y * p1.x)
-        den = sqrt(y_diff ** 2 + x_diff ** 2)
-        return num / den
-
-
-def identify_number_of_optimum_clusters(folder_names):
+def identify_number_of_optimum_clusters(param, paths):
     """This function identifies number of optimum clusters which will be chosen for k-means
     Further explanation:
     Standard deviation and size of this reference part are used to estimate the no of clusters of every other part.
-    :param folder_names = The names of all the folders created for output.
+        :param param = The parameters from config.py
+        :param paths = The paths to the rasters and to the output folders, from config.py
     """
-    logger.info('Executing function "identify_number_of_optimum_clusters".')
-    print('------------------------- Identifying number of optimum clusters ------------------------- ')
-    current_date_time = datetime.datetime.now()
-    format_time = current_date_time.strftime("%Y-%m-%d_%H:%M:%S")
-    print('This part started at: ' + format_time)
-    logger.info('"identify_number_of_optimum_clusters" started at: ' + format_time)
-
-    logger.info('Reading csv file "ref_part_and_max_values.csv".')
-    ref_part_df = pd.read_csv(folder_names['other_files'] + 'ref_part_and_max_values.csv', index_col=0)
-    ref_part_no = ref_part_df['ref_part_name'].values[0]
-    reference_part = folder_names['output_sub_rasters'] + 'sub_part_' + str(ref_part_no) + '.tif'
-    logger.debug('Reference part: ' + str(reference_part))
-
-    logger.info('Opening reference part as a dataset.')
-    dataset = gdal.Open(reference_part)
-    (upper_left_x, x_size, x_rotation, upper_left_y, y_rotation, y_size) = dataset.GetGeoTransform()
-    band_raster = dataset.GetRasterBand(1)
-    array_raster = band_raster.ReadAsArray()
-    array_raster[array_raster <= 0] = np.nan
-
-    (y_index, x_index) = np.nonzero(~np.isnan(array_raster))
-    X = x_index * x_size + upper_left_x + (x_size / 2)
-    Y = y_index * y_size + upper_left_y + (y_size / 2)
-    array_raster = array_raster.flatten()
-    array_raster = array_raster[~np.isnan(array_raster)]
-    data = pd.DataFrame({'X': X, 'Y': Y, 'Value': array_raster})
-    coef = data.copy()
-    coef['X'] = (data['X'] - data['X'].min()) / (data['X'].max() - data['X'].min())
-    coef['Y'] = (data['Y'] - data['Y'].min()) / (data['Y'].max() - data['Y'].min())
-    if data['Value'].min() == data['Value'].max():
-        coef['Value'] = 0.1
+    # Read input_stats.csv
+    df = pd.read_csv(paths["OUT"] + 'input_stats.csv', sep=';', decimal=',', index_col=0)
+    if "max_no_of_cl" in param:
+        logger.info('The user has set the maximum number of clusters in the reference raster: %d.', param["max_no_of_cl"])
+        df.loc['max_no_of_cl', 'value'] = param["max_no_of_cl"]
+        df.to_csv(paths["OUT"] + 'input_stats.csv', sep=';', decimal=',')
     else:
-        coef['Value'] = 0.1 * (data['Value'] - data['Value'].min()) / (data['Value'].max() - data['Value'].min())
-
-    size_ref_part = len(coef)
-    std_ref_part = data['Value'].std(axis=0)
-
-    logger.info('Running k-means in order to get the optimum number of clusters.')
-    # Only needed to be run once
-    k_means_stats = pd.DataFrame(columns=['Inertia', 'Distance', 'Slope'])
-    k_set = [50, 150]
-    k_set.extend(range(60, 141, 10))
-    for i in k_set:
-        print('Checking for cluster number:' + str(i))
-        logger.info('Checking for number of clusters = ' + str(i))
-        kmeans = sklearn.cluster.KMeans(n_clusters=i, init='k-means++', n_init=2, max_iter=1000, tol=0.0001,
-                                        precompute_distances='auto', verbose=0, copy_x=True, n_jobs=-1,
-                                        algorithm='auto')
-        CL = kmeans.fit(coef)
-        k_means_stats.loc[i, 'Inertia'] = kmeans.inertia_  # inertia is the sum of the square of the euclidean distances
-        logger.debug('Inertia for part: ' + str(i) + ' = ' + str(kmeans.inertia_))
-        print('Inertia: ', kmeans.inertia_)
-
-        p = OptimumPoint((i - 50) // 10 + 1, k_means_stats.loc[i, 'Inertia'])
-        if i == k_set[0]:
-            p1 = p
-            k_means_stats.loc[i, 'Distance'] = 0
-        elif i == k_set[1]:
-            p2 = p
-            k_means_stats.loc[i, 'Distance'] = 0
-        else:
-            k_means_stats.loc[i, 'Distance'] = p.distance_to_line(p1, p2)
-            k_means_stats.loc[i, 'Slope'] = k_means_stats.loc[i, 'Distance'] - k_means_stats.loc[i - 10, 'Distance']
-            if abs(k_means_stats.loc[i, 'Slope']) <= 0.2:
-                break
-
-    k_means_stats.to_csv(folder_names['main_folder'] + 'kmeans_stats.csv')
-
-    # The point for which the slope is less than threshold is taken as optimum number of clusters.
-    maximum_number_of_clusters_ref_part = int(i)
-    print('Number of maximum clusters: ' + str(maximum_number_of_clusters_ref_part))
-    logger.info('Maximum clusters for reference part: ' + str(maximum_number_of_clusters_ref_part))
-
-    # Writing the number of maximum clusters to csv file for further use.
-    logger.info('Writing csv file "max_no_of_cl.csv".')
-    df_vd = pd.DataFrame(data={'max_no_of_cl': [maximum_number_of_clusters_ref_part]})
-    df_vd.to_csv(folder_names['other_files'] + 'max_no_of_cl.csv')
-
-    current_date_time = datetime.datetime.now()
-    format_time = current_date_time.strftime("%Y-%m-%d_%H:%M:%S")
-    print('------------------------- == -------------------------')
-    print('This part finished at: ' + format_time)
-    print('------------------------- == -------------------------')
-    logger.info('"identify_number_of_optimum_clusters" finished at: ' + format_time)
-
-    return True
-
-
-# WISHLIST:
-# a) check whether we should ceil or floor when estimating the optimal number of clusters
-# Possible solution: Check the number after decimal. If it is less than 5, floor, otherwise ceil. But it really doesn't
-# matter as it will differ this value by only 1 which is not a big difference.
-def k_means_clustering(folder_names):
+        logger.info('Executing function "identify_number_of_optimum_clusters".')
+        print('------------------------- Identifying number of optimum clusters ------------------------- ')
+        current_date_time = datetime.datetime.now()
+        format_time = current_date_time.strftime("%Y-%m-%d_%H:%M:%S")
+        print('This part started at: ' + format_time)
+        logger.info('"identify_number_of_optimum_clusters" started at: ' + format_time)
+        
+        ref_part_no = int(df.loc['ref_part_name', 'value'])
+        
+        counter_files = 'A'
+        data = pd.DataFrame(columns=['X', 'Y', 'Value_'+counter_files])
+        for input_file in paths["inputs"]:
+            reference_part = paths["sub_rasters"] + counter_files + '_sub_part_' + str(ref_part_no) + '.tif'
+            logger.debug('Reference part: ' + str(reference_part))
+            logger.info('Opening reference part as a dataset.')
+            dataset = gdal.Open(reference_part)
+            (upper_left_x, x_size, x_rotation, upper_left_y, y_rotation, y_size) = dataset.GetGeoTransform()
+            band_raster = dataset.GetRasterBand(1)
+            array_raster = band_raster.ReadAsArray()
+            array_raster[array_raster <= param["minimum_valid"]] = np.nan
+        
+            (y_index, x_index) = np.nonzero(~np.isnan(array_raster))
+            X = x_index * x_size + upper_left_x + (x_size / 2)
+            Y = y_index * y_size + upper_left_y + (y_size / 2)
+            array_raster = array_raster.flatten()
+            array_raster = array_raster[~np.isnan(array_raster)]
+            if len(data)==0:
+                data = pd.DataFrame({'X': X, 'Y': Y, 'Value_'+counter_files: array_raster}).set_index(['X', 'Y'])
+                counter_files = chr(ord(counter_files) + 1)
+            else:
+                data = data.join(pd.DataFrame({'X': X, 'Y': Y, 'Value_'+counter_files: array_raster}).set_index(['X', 'Y']), how='inner')
+                counter_files = chr(ord(counter_files) + 1)
+                
+        coef = data.copy()
+        coef.reset_index(inplace=True)
+        coef['X'] = (coef['X'] - coef['X'].min()) / (coef['X'].max() - coef['X'].min())
+        coef['Y'] = (coef['Y'] - coef['Y'].min()) / (coef['Y'].max() - coef['Y'].min())
+        n_cols = len(coef.columns[2:])
+        # The values in the other columns are given less weight
+        for col in coef.columns[2:]:
+            if coef[col].min() == coef[col].max():
+                coef[col] = 0.1 / np.sqrt(n_cols)
+            else:
+                coef[col] = 0.1 / np.sqrt(n_cols) * (coef[col] - coef[col].min()) / (coef[col].max() - coef[col].min())
+        
+        logger.info('Running k-means in order to get the optimum number of clusters.')
+        # Only needed to be run once
+        k_means_stats = pd.DataFrame(columns=['Inertia', 'Distance', 'Slope'])
+        k_min =  param["kmeans"]["min"]
+        k_max =  param["kmeans"]["max"]
+        k_step = param["kmeans"]["step"]
+        k_set = [k_min, k_max]
+        k_set.extend(range(k_min+k_step, k_max-k_step+1, k_step))
+        for i in k_set:
+            print('Checking for cluster number:' + str(i))
+            logger.info('Checking for number of clusters = ' + str(i))
+            kmeans = sklearn.cluster.KMeans(n_clusters=i, init='k-means++', n_init=10, max_iter=1000, tol=0.0001,
+                                            precompute_distances='auto', verbose=0, copy_x=True, n_jobs=param["n_jobs"],
+                                            algorithm='auto')
+            CL = kmeans.fit(coef)
+            k_means_stats.loc[i, 'Inertia'] = kmeans.inertia_  # inertia is the sum of the square of the euclidean distances
+            logger.debug('Inertia for part: ' + str(i) + ' = ' + str(kmeans.inertia_))
+            print('Inertia: ', kmeans.inertia_)
+        
+            p = OptimumPoint((i - k_min) // k_step + 1, k_means_stats.loc[i, 'Inertia'])
+            if i == k_set[0]:
+                p1 = p
+                k_means_stats.loc[i, 'Distance'] = 0
+            elif i == k_set[1]:
+                p2 = p
+                k_means_stats.loc[i, 'Distance'] = 0
+            else:
+                k_means_stats.loc[i, 'Distance'] = p.distance_to_line(p1, p2)
+                k_means_stats.loc[i, 'Slope'] = k_means_stats.loc[i, 'Distance'] - k_means_stats.loc[i - k_step, 'Distance']
+                if abs(k_means_stats.loc[i, 'Slope']) <= 0.2:
+                    break
+        
+        k_means_stats = k_means_stats.astype('float64')
+        k_means_stats.to_csv(paths["OUT"] + 'kmeans_stats.csv', index=False, sep=';', decimal=',')
+        
+        # The point for which the slope is less than threshold is taken as optimum number of clusters.
+        maximum_number_of_clusters_ref_part = int(i)
+        print('Number of maximum clusters: ' + str(maximum_number_of_clusters_ref_part))
+        logger.info('Maximum clusters for reference part: ' + str(maximum_number_of_clusters_ref_part))
+        
+        # Writing the number of maximum clusters to csv file for further use.
+        df.loc['max_no_of_cl', 'value'] = maximum_number_of_clusters_ref_part
+        logger.info('Writing data in csv file input_stats.csv')
+        df.to_csv(paths["OUT"] + 'input_stats.csv', sep=';', decimal=',')
+        
+        current_date_time = datetime.datetime.now()
+        format_time = current_date_time.strftime("%Y-%m-%d_%H:%M:%S")
+        print('------------------------- == -------------------------')
+        print('This part finished at: ' + format_time)
+        print('------------------------- == -------------------------')
+        logger.info('"identify_number_of_optimum_clusters" finished at: ' + format_time)
+    
+    
+def k_means_clustering(param, paths):
     """This function does the k-means clustering for every part.
-    :param folder_names = The names of all the folders created for output.
+        :param param = The parameters from config.py
+        :param paths = The paths to the rasters and to the output folders, from config.py
     """
     logger.info('Starting k_means_clustering.')
     print('------------------------- Starting k-means ------------------------- ')
@@ -383,89 +324,109 @@ def k_means_clustering(folder_names):
     print('This part started at: ' + format_time)
     logger.info('"k_means_clustering" started at: ' + format_time)
 
-    # Reading all necessary inputs from different csv files in other_files folder.
-    logger.info('Reading csv file "parts_of_map.csv".')
-    df = pd.read_csv(folder_names['other_files'] + 'parts_of_map.csv', index_col=0)
-    (parts_of_map, no_of_columns_in_map, no_of_rows_in_map) = tuple(df.loc[0])
-    logger.info('Reading csv file "non_empty_rasters.csv".')
-    df = pd.read_csv(folder_names['main_folder'] + 'non_empty_rasters.csv', index_col=0)
-    no_of_parts_of_map = df.index
-    logger.info('Reading csv file "max_no_of_cl.csv".')
-    df = pd.read_csv(folder_names['other_files'] + 'max_no_of_cl.csv', index_col=0)
-    maximum_no_of_clusters = int(df.loc[0, 'max_no_of_cl'])
-    logger.info('Reading csv file "ref_part_and_max_values.csv".')
-    df = pd.read_csv(folder_names['other_files'] + 'ref_part_and_max_values.csv', index_col=0)
-    size_max = df.loc[0, 'size_max']
-    std_max = float(df.loc[0, 'std_max'])
+    # Reading all necessary inputs from input_stats.csv.
+    logger.info('Reading csv file "input_stats.csv".')
+    df = pd.read_csv(paths["OUT"] + 'input_stats.csv', sep=';', decimal=',', index_col=0)
+    parts_of_map = int(df.loc['map_parts_total', 'value'])
+    no_of_columns_in_map = int(df.loc['output_raster_columns', 'value'])
+    no_of_rows_in_map = int(df.loc['output_raster_rows', 'value'])
+    maximum_no_of_clusters = int(df.loc['max_no_of_cl', 'value'])
+    size_max = df.loc['size_max', 'value']
+    std_max = df.loc['std_max', 'value']
+    
+    # Reading the indices of non empty rasters from non_empty_rasters.csv.
+    df = pd.read_csv(paths["OUT"] + 'non_empty_rasters.csv', sep=';', decimal=',', index_col=[0,1])
+    non_empty_rasters = list(set(df.index.levels[1].tolist()))
 
     # Applying k-means on all parts.
-    for i in no_of_parts_of_map:
+    for i in non_empty_rasters:
         logger.info('Running k-means on part: ' + str(i))
-        file = folder_names['output_sub_rasters'] + 'sub_part_%d.tif' % i
-        logger.info('Opening raster file as dataset for conversion to array for k-means.')
-        dataset = gdal.Open(file)
-
-        (upper_left_x, x_size, x_rotation, upper_left_y, y_rotation, y_size) = dataset.GetGeoTransform()
-        band_raster = dataset.GetRasterBand(1)
-        array_raster = band_raster.ReadAsArray()
-        array_raster[array_raster <= 0] = np.nan
-
-        (y_index, x_index) = np.nonzero(~np.isnan(array_raster))
-        X = x_index * x_size + upper_left_x + (x_size / 2)
-        Y = y_index * y_size + upper_left_y + (y_size / 2)
-
-        array_raster = array_raster.flatten()
-        table = pd.DataFrame({'Value': array_raster})
-        data = pd.DataFrame({'X': X, 'Y': Y, 'Value': array_raster[~np.isnan(array_raster)]})
+        counter_files = 'A'
+        data = pd.DataFrame(columns=['X', 'Y', 'Value_'+counter_files])
+        for input_file in paths["inputs"]:
+            file = paths["sub_rasters"] + counter_files + '_sub_part_%d.tif' % i
+            logger.info('Opening raster file as dataset for conversion to array for k-means.')
+            dataset = gdal.Open(file)
+            
+            (upper_left_x, x_size, x_rotation, upper_left_y, y_rotation, y_size) = dataset.GetGeoTransform()
+            band_raster = dataset.GetRasterBand(1)
+            array_raster = band_raster.ReadAsArray()
+            array_raster[array_raster < param["minimum_valid"]] = np.nan
+            
+            (y_index, x_index) = np.nonzero(~np.isnan(array_raster))
+            X = x_index * x_size + upper_left_x + (x_size / 2)
+            Y = y_index * y_size + upper_left_y + (y_size / 2)
+            array_raster = array_raster.flatten()
+            
+            #table = pd.DataFrame({'Value_'+counter_files: array_raster}) ###########################
+            
+            if len(data)==0:
+                table = pd.DataFrame({'Value_'+counter_files: array_raster})
+                data = pd.DataFrame({'X': X, 'Y': Y, 'Value_'+counter_files: array_raster[~np.isnan(array_raster)]}).set_index(['X', 'Y'])
+                std_of_raster = data['Value_'+counter_files].std(axis=0)
+                counter_files = chr(ord(counter_files) + 1)
+            else:
+                table = pd.DataFrame({'Value_'+counter_files: array_raster})
+                data = data.join(pd.DataFrame({'X': X, 'Y': Y, 'Value_'+counter_files: array_raster[~np.isnan(array_raster)]}).set_index(['X', 'Y']), how='inner')
+                std_of_raster = max(std_of_raster, data['Value_'+counter_files].std(axis=0))
+                counter_files = chr(ord(counter_files) + 1)
+            
         coef = data.copy()
-
-        coef['X'] = (data['X'] - data['X'].min()) / (data['X'].max() - data['X'].min())
-        coef['Y'] = (data['Y'] - data['Y'].min()) / (data['Y'].max() - data['Y'].min())
-        if data['Value'].min() == data['Value'].max():
-            coef['Value'] = 0.1
-        else:
-            coef['Value'] = 0.1 * (data['Value'] - data['Value'].min()) / (data['Value'].max() - data['Value'].min())
-
+        coef.reset_index(inplace=True)
+        coef['X'] = (coef['X'] - coef['X'].min()) / (coef['X'].max() - coef['X'].min())
+        coef['Y'] = (coef['Y'] - coef['Y'].min()) / (coef['Y'].max() - coef['Y'].min())
+        n_cols = len(coef.columns[2:])
+        # The values in the other columns are given less weight
+        for col in coef.columns[2:]:
+            if coef[col].min() == coef[col].max():
+                coef[col] = 0.1 / np.sqrt(n_cols)
+            else:
+                coef[col] = 0.1 / np.sqrt(n_cols) * (coef[col] - coef[col].min()) / (coef[col].max() - coef[col].min())
         size_of_raster = len(coef)
-        std_of_raster = data['Value'].std(axis=0)
 
         # this function is used to determine the optimum number of clusters for respective part.
         optimum_no_of_clusters_for_raster = int(np.ceil(maximum_no_of_clusters * (0.7 * (size_of_raster / size_max)
-                                                                              + 0.3 * (std_of_raster / std_max))))
+                                                                               + 0.3 * (std_of_raster / std_max))))
         logger.debug('Optimum clusters for part ' + str(i) + ' = ' + str(optimum_no_of_clusters_for_raster))
         logger.debug('70% weight to size and 30% weight to std.')
-        if data['Value'].min() == data['Value'].max():
+        if std_of_raster == 0:
             logger.debug('Optimum clusters for this part = 1.')
             optimum_no_of_clusters_for_raster = 1
         if size_of_raster < optimum_no_of_clusters_for_raster:
             logger.debug('Optimum clusters for this part = %d.' % size_of_raster)
             optimum_no_of_clusters_for_raster = size_of_raster
 
-        kmeans = sklearn.cluster.KMeans(n_clusters=optimum_no_of_clusters_for_raster, init='k-means++', n_init=2,
+        kmeans = sklearn.cluster.KMeans(n_clusters=optimum_no_of_clusters_for_raster, init='k-means++', n_init=10,
                                         max_iter=1000, tol=0.0001, precompute_distances='auto', verbose=0, copy_x=True,
-                                        n_jobs=-1, algorithm='auto')
+                                        n_jobs=param["n_jobs"], algorithm='auto')
         CL = kmeans.fit(coef)
 
         clusters = np.empty([no_of_rows_in_map, no_of_columns_in_map])
-        clusters[:] = -1
+        clusters[:] = param["minimum_valid"] - 1
         clusters[y_index, x_index] = CL.labels_
-        logger.info('Converting array back to raster. File created: ' + folder_names['output_k_means'] +
-                    'cluster_part_%d.tif' % i)
-        array_to_raster(clusters, folder_names['output_k_means'] + 'cluster_part_%d.tif' % i, file)
+        logger.info('Converting array back to raster. File created: ' + paths["k_means"] +
+                    'clusters_part_%d.tif' % i)
+        array_to_raster(clusters, paths["k_means"] + 'clusters_part_%d.tif' % i, file)
 
-        clusters = clusters.flatten()
-        table['CL'] = clusters
-        if args.type == 'mean':
-            for cl in table.loc[pd.notnull(table['Value']), 'CL'].unique():
-                table.loc[table['CL'] == cl, 'Value'] = table.loc[table['CL'] == cl, 'Value'].mean()
-        elif args.type == 'sum':
-            for cl in table.loc[pd.notnull(table['Value']), 'CL'].unique():
-                table.loc[table['CL'] == cl, 'Value'] = table.loc[table['CL'] == cl, 'Value'].sum()
-        table.loc[pd.isnull(table['Value']), 'Value'] = -1
-        cluster_means = table['Value'].values.reshape(no_of_rows_in_map, no_of_columns_in_map)
-        logger.info('Converting array back to raster. File created: ' + folder_names['output_k_means'] +
-                    'value_cluster_part_%d.tif' % i)
-        array_to_raster(cluster_means, folder_names['output_k_means'] + 'value_cluster_part_%d.tif' % i, file)
+        table['CL'] = clusters.flatten().astype(int)
+        # Calculating the aggregated values for each cluster based on the aggregation method
+        counter_files = 'A'
+        for input_file in paths["inputs"]:
+            if param["agg"][counter_files] == 'density':
+                # For pixels with the same size, density = mean
+                for cl in table.loc[pd.notnull(table['Value_'+counter_files]), 'CL'].unique():
+                    table.loc[table['CL'] == cl, 'Value_'+counter_files] = table.loc[table['CL'] == cl, 'Value_'+counter_files].mean()
+            else:
+                for cl in table.loc[pd.notnull(table['Value_'+counter_files]), 'CL'].unique():
+                    table.loc[table['CL'] == cl, 'Value_'+counter_files] = table.loc[table['CL'] == cl, 'Value_'+counter_files].param["agg"][counter_files]
+            # Fill the rest with a value equivalent to NaN in this code
+            table.loc[pd.isnull(table['Value_'+counter_files]), 'Value_'+counter_files] = param["minimum_valid"] - 1
+            
+            counter_files = chr(ord(counter_files) + 1)
+
+        # Group by cluster number, then save the table for later
+        table = table.groupby(['CL']).mean()
+        table.to_csv(paths["k_means"] + 'clusters_part_%d.csv' % i, index=True, sep=';', decimal=',')
         print('Status: k-means completed for raster part: ' + str(i))
 
     # End of k-means.
@@ -478,13 +439,12 @@ def k_means_clustering(folder_names):
     print('This part finished at: ' + format_time)
     print('------------------------- == -------------------------')
     logger.info('"k_means_clustering" finished at: ' + format_time)
-
-    return True
-
-
-def polygonize_after_k_means(folder_names):
+    
+    
+def polygonize_after_k_means(param, paths):
     """This function changes from raster after k-means to polygon layers which are used in MaxP algorithm.
-    :param folder_names = The names of all the folders created for output.
+        :param param = The parameters from config.py
+        :param paths = The paths to the rasters and to the output folders, from config.py
     """
     logger.info('Polygonizing all the raster parts obtained after k-means. This is done in order to get all parts ready'
                 'for max-p algorithm.')
@@ -494,55 +454,39 @@ def polygonize_after_k_means(folder_names):
     print('This part started at: ' + format_time)
     logger.info('"polygonize_after_k_means" started at: ' + format_time)
 
-    logger.info('Reading csv file "non_empty_rasters.csv".')
-    non_empty_rasters = pd.read_csv(folder_names['main_folder'] + 'non_empty_rasters.csv', index_col=0)
-    for i in non_empty_rasters.index:
+    # Reading the indices of non empty rasters from non_empty_rasters.csv.
+    df = pd.read_csv(paths["OUT"] + 'non_empty_rasters.csv', sep=';', decimal=',', index_col=[0,1])
+    non_empty_rasters = list(set(df.index.levels[1].tolist()))
+    
+    for i in non_empty_rasters:
         logger.info('Polygonizing raster part: ' + str(i))
         print('Polygonizing raster part: ' + str(i))
-        logger.info('Reading files: ')
-        logger.info(folder_names['output_k_means'] + 'value_cluster_part_%d.tif' % i)
-        logger.info(folder_names['output_k_means'] + 'cluster_part_%d.tif' % i)
-        file_value = folder_names['output_k_means'] + 'value_cluster_part_%d.tif' % i
-        file_cluster = folder_names['output_k_means'] + 'cluster_part_%d.tif' % i
-        shape_value = folder_names['output_polygons'] + 'shapefile_part_%d' % i
-        shape_cluster = folder_names['output_polygons'] + 'shapefile_cluster_part_%d' % i
-        logger.info('Applying polygonize function on both files.')
-        polygonize(file_value, shape_value, 'Value')
+        file_cluster = paths["k_means"] + 'clusters_part_%d.tif' % i
+        shape_cluster = paths["polygons"] + 'clusters_part_%d.shp' % i
         polygonize(file_cluster, shape_cluster, 'CL')
 
-        # There is a need to dissolve both the layers because there is a threshold while dissolving and if the cluster
-        # number layer is not dissolved, at the end we will be having less clusters than what we got.
-        # Dissolving First Layer
-        logger.info('Dissolving first layer.')
-        file_value = gpd.read_file(shape_value + '.shp')
-        file_value = file_value.dissolve(by='Value')
-        file_value.drop(file_value[file_value.index < 0].index, inplace=True)
-        file_value.reset_index(inplace=True)
-
-        # Dissolve Second Layer
-        logger.info('Dissolving second layer.')
-        file_cluster = gpd.read_file(shape_cluster + '.shp')
-        file_cluster = file_cluster.dissolve(by='CL')
-        file_cluster.drop(file_cluster[file_cluster.index < 0].index, inplace=True)
+        # Read table
+        table = pd.read_csv(paths["k_means"] + 'clusters_part_%d.csv' % i, index_col=0, sep=';', decimal=',')
+        # Read shapefile with polygons
+        file_cluster = gpd.read_file(shape_cluster)
+        # Join shapefile and table
+        file_cluster.set_index('CL', inplace=True)
+        file_cluster = file_cluster.join(table)
         file_cluster.reset_index(inplace=True)
-
-        # Join Files Dissolved Files for every layer together
-        logger.info('Joining dissolved files.')
-        joined_files = gpd.sjoin(file_cluster, file_value, how='left', op='within')
-        joined_files.drop(['index_right'], axis=1, inplace=True)
-        logger.info('Creating file: ' + folder_names['output_polygons'] + 'result_%d.shp' % i)
-        joined_files.to_file(driver='ESRI Shapefile', filename=folder_names['output_polygons'] + 'result_%d.shp' % i)
+        file_cluster.crs = {'init': param["CRS"]}
+        file_cluster.to_file(driver='ESRI Shapefile', filename=paths["polygons"] + 'result_%d.shp' % i)
 
     # merging all parts together after kmeans to see the output
     logger.info('Merging all parts together.')
-    gdf = gpd.read_file(folder_names['output_polygons'] + 'result_%d.shp' % non_empty_rasters.index[0])
-    for j in non_empty_rasters.index[1:]:
-        gdf_aux = gpd.read_file(folder_names['output_polygons'] + 'result_%d.shp' %j)
+    gdf = gpd.read_file(paths["polygons"] + 'result_%d.shp' % non_empty_rasters[0])
+    for j in non_empty_rasters[1:]:
+        gdf_aux = gpd.read_file(paths["polygons"] + 'result_%d.shp' %j)
         gdf = gpd.GeoDataFrame(pd.concat([gdf, gdf_aux], ignore_index=True))
 
     gdf['CL'] = gdf.index
     logger.info('Creating file: combined_result.shp.')
-    gdf.to_file(driver='ESRI Shapefile', filename=folder_names['output_polygons'] + 'combined_result.shp')
+    gdf.crs = {'init': param["CRS"]}
+    gdf.to_file(driver='ESRI Shapefile', filename=paths["polygons"] + 'combined_result.shp')
 
     current_date_time = datetime.datetime.now()
     format_time = current_date_time.strftime("%Y-%m-%d_%H:%M:%S")
@@ -551,12 +495,26 @@ def polygonize_after_k_means(folder_names):
     print('------------------------- == -------------------------')
     logger.info('"polygonize_after_k_means" finished at: ' + format_time)
 
-    return True
+
+# This class is used in the elbow method to identify the maximum distance between the end point and the start point of
+# the curve created between no. of clusters and inertia.
+class OptimumPoint:
+    def __init__(self, init_x, init_y):
+        self.x = init_x
+        self.y = init_y
+
+    def distance_to_line(self, p1, p2):
+        x_diff = p2.x - p1.x
+        y_diff = p2.y - p1.y
+        num = abs(y_diff * self.x - x_diff * self.y + p2.x * p1.y - p2.y * p1.x)
+        den = sqrt(y_diff ** 2 + x_diff ** 2)
+        return num / den
 
 
-def max_p_algorithm(folder_names):
+def max_p_algorithm(param, paths):
     """This function applies the max-p algorithm to the obtained polygons.
-    :param folder_names = The names of all the folders created for output.
+        :param param = The parameters from config.py
+        :param paths = The paths to the rasters and to the output folders, from config.py
     """
     logger.info('Starting max-p.')
     print('------------------------- Max-p One -------------------------')
@@ -566,35 +524,44 @@ def max_p_algorithm(folder_names):
     logger.info('"max_p_algorithm" started at: ' + format_time)
 
     # Reading all necessary inputs from csv files for this function.
-    logger.info('Reading csv file: ' + folder_names['main_folder'] + 'non_empty_rasters.csv')
-    non_empty_rasters = pd.read_csv(folder_names['main_folder'] + 'non_empty_rasters.csv', index_col=0)
+    logger.info('Reading csv file: ' + paths["OUT"] + 'non_empty_rasters.csv')
+    df = pd.read_csv(paths["OUT"] + 'non_empty_rasters.csv', sep=';', decimal=',', index_col=[0,1])
+    non_empty_rasters = list(set(df.index.levels[1].tolist()))
+    
+    # Group by part number, and calculate the product of rel_size and rel_std
+    group_by_part = df.reset_index(inplace=False)
+    group_by_part = group_by_part.groupby(['part']).prod()
 
     logger.info('Starting max-p.')
-    for i in non_empty_rasters.index:
-        logger.info('Running max-p for part: ' + folder_names['output_polygons'] + 'result_%d.shp' % i)
+    for i in non_empty_rasters:
+        logger.info('Running max-p for part: ' + paths["polygons"] + 'result_%d.shp' % i)
         print('Number of part starting: ', str(i))
-        size = non_empty_rasters.loc[i, 'size']
-        std = non_empty_rasters.loc[i, 'std']
-        data = gpd.read_file(folder_names['output_polygons'] + 'result_%d.shp' % i)
-        data_scaled = MinMaxScaler().fit_transform(data['Value'].values.reshape(-1, 1))
+        data = gpd.read_file(paths["polygons"] + 'result_%d.shp' % i)
+        
+        # Calculate the weighted sum in 'Value', that will be used for clustering
+        counter_files = 'A'
+        data['Value'] = 0
+        for input_file in paths["inputs"]:
+            scaling = data['Value_' + counter_files].mean()
+            data['Value'] = data['Value'] + param["weights"][counter_files] * data['Value_' + counter_files] / scaling
+            counter_files = chr(ord(counter_files) + 1)
 
         logger.info('Creating weights object.')
-        w = ps.weights.Queen.from_shapefile(folder_names['output_polygons'] + 'result_%d.shp' % i)
+        w = ps.weights.Queen.from_shapefile(paths["polygons"] + 'result_%d.shp' % i)
 
-        # this loop is used to force any disconnected group of polygons to be assigned to the nearest neighbors
+        # This loop is used to force any disconnected group of polygons to be assigned to the nearest neighbors
         if len(data) > 1:
-            knn1 = ps.weights.KNN.from_shapefile(folder_names['output_polygons'] + 'result_%d.shp' % i, k=1)
+            knnw = ps.weights.KNN.from_shapefile(paths["polygons"] + 'result_%d.shp' % i, k=1)
             logger.info('Attaching islands if any to nearest neighbor.')
-            w = libpysal.weights.util.attach_islands(w, knn1)
-            # this is used to force any islands of polygons to be
-            # assigned to the nearest neighbors
-            aa = w.islands
-            [tt, A] = cg.connected_components(w.sparse)
-            if tt > 1:
+            w = libpysal.weights.util.attach_islands(w, knnw)
+
+            [n_components, labels] = cg.connected_components(w.sparse)
+            if n_components > 1:
                 logger.info('Disconnected areas inside the matrix exist. Removing them before max-p can be applied.')
                 print('Disconnected areas exist')
-                for gg in range(tt):
-                    ss = [uu for uu, x in enumerate(A == gg) if x]
+                for comp in range(n_components):
+                    import pdb; pdb.set_trace()
+                    ss = [uu for uu, x in enumerate(labels == comp) if x]
                     dd = data.loc[ss]
                     dd['F'] = 1
                     dd['geometry'] = dd['geometry'].buffer(0)
@@ -602,33 +569,32 @@ def max_p_algorithm(folder_names):
                     dd.index = [len(data)]
                     dissolve = data.drop(ss)
                     dissolve = dissolve.append(dd)
-                    knn1 = ps.weights.KNN.from_dataframe(dissolve, k=1)
+                    knnw = ps.weights.KNN.from_dataframe(dissolve, k=1)
                     for cc in range(1, len(data) - 1):
                         countern = 0
                         knn = ps.weights.KNN.from_dataframe(data, k=cc)
                         for s in range(len(ss)):
-                            if knn.neighbors[ss[s]][cc - 1] == knn1.neighbors[len(data)][0]:
-                                w.neighbors[ss[s]] = w.neighbors[ss[s]] + knn1.neighbors[len(data)]
-                                w.neighbors[knn1.neighbors[len(data)][0]] = w.neighbors[
-                                                                                knn1.neighbors[len(data)][0]] + [
+                            if knn.neighbors[ss[s]][cc - 1] == knnw.neighbors[len(data)][0]:
+                                w.neighbors[ss[s]] = w.neighbors[ss[s]] + knnw.neighbors[len(data)]
+                                w.neighbors[knnw.neighbors[len(data)][0]] = w.neighbors[
+                                                                                knnw.neighbors[len(data)][0]] + [
                                                                                 ss[s]]
                                 countern = countern + 1
                                 continue
                         if countern > 0:
                             break
-        logger.info('Getting co-efficients for threshold equation.')
-        coef = get_coefficients(folder_names)
+        logger.info('Getting coefficients for threshold equation.')
+        coef = get_coefficients(paths)
         logger.debug('Coefficients:', coef)
-        thr = (coef['a'] * (exp(-coef['b'] *
-                                (non_empty_rasters.loc[i, 'rel_size'] +
-                                 (coef['c'] * non_empty_rasters.loc[i, 'rel_std']))))) * data['Value'].sum() * 0.5
+        print(i, (coef['a'] * (exp(-coef['b'] * (group_by_part.loc[i, 'rel_size'] + (coef['c'] * group_by_part.loc[i, 'rel_std']))))))
+        thr = (coef['a'] * (exp(-coef['b'] * (group_by_part.loc[i, 'rel_size'] + (coef['c'] * group_by_part.loc[i, 'rel_std']))))) * data['Value'].sum() * 0.5
         logger.debug('Threshold complete: ' + str(thr))
         # Threshold here was used depending on the size and standard deviation
         if len(data) == 1:
             thr = data['Value'].sum() - 0.01
-        random_no = rd.randint(1000, 1500)  # The range is selected randomly.
-        logger.debug('Random number for seed: ' + str(random_no))
-        np.random.seed(random_no)
+        #random_no = rd.randint(1000, 1500)  # The range is selected randomly.
+        #logger.debug('Random number for seed: ' + str(random_no))
+        #np.random.seed(random_no)
         print('Running max-p.')
         logger.info('Running max-p for part: ' + str(i))
         r = ps.region.maxp.Maxp(w, data['Value'].values.reshape(-1, 1), floor=thr, floor_variable=data['Value'], initial=5000)
@@ -646,10 +612,10 @@ def max_p_algorithm(folder_names):
             gal = libpysal.open('%d.gal' % i, 'r')
             w = gal.read()
             gal.close()
-            [tt, A] = cg.connected_components(w.sparse)
+            [n_components, labels] = cg.connected_components(w.sparse)
             print('Disconnected areas exist again')
-            for gg in range(tt):
-                ss = [uu for uu, x in enumerate(A == gg) if x]
+            for comp in range(n_components):
+                ss = [uu for uu, x in enumerate(labels == comp) if x]
                 dd = data.loc[ss]
                 dd['F'] = 1
                 dd['geometry'] = dd['geometry'].buffer(0)
@@ -657,15 +623,15 @@ def max_p_algorithm(folder_names):
                 dd.index = [len(data)]
                 dissolve = data.drop(ss)
                 dissolve = dissolve.append(dd)
-                knn1 = ps.weights.KNN.from_dataframe(dissolve, k=1)
+                knnw = ps.weights.KNN.from_dataframe(dissolve, k=1)
                 for cc in range(1, len(data) - 1):
                     countern = 0
                     knn = ps.weights.KNN.from_dataframe(data, k=cc)
                     for s in range(len(ss)):
-                        if knn.neighbors[ss[s]][cc - 1] == knn1.neighbors[len(data)][0]:
-                            w.neighbors[str(ss[s])] = w.neighbors[str(ss[s])] + [str(knn1.neighbors[len(data)][0])]
-                            w.neighbors[str(knn1.neighbors[len(data)][0])] = w.neighbors[
-                                                                                 str(knn1.neighbors[len(data)][0])] + [
+                        if knn.neighbors[ss[s]][cc - 1] == knnw.neighbors[len(data)][0]:
+                            w.neighbors[str(ss[s])] = w.neighbors[str(ss[s])] + [str(knnw.neighbors[len(data)][0])]
+                            w.neighbors[str(knnw.neighbors[len(data)][0])] = w.neighbors[
+                                                                                 str(knnw.neighbors[len(data)][0])] + [
                                                                                  str(ss[s])]
                             countern = countern + 1
                             continue
@@ -681,28 +647,46 @@ def max_p_algorithm(folder_names):
             logger.info('Number of clusters after max-p: ' + str(r.p))
         data['CL'] = pd.Series(r.area2region).reindex(data.index)
         data['geometry'] = data['geometry'].buffer(0)
-        if args.type == 'mean':
-            file = data.dissolve(by='CL', aggfunc='mean')
-        elif args.type == 'sum':
-            file = data.dissolve(by='CL', aggfunc='sum')
+        
+        # Calculating the area of each cluster (useful for the density, but needs a projection)
+        if param["CRS"] == "epsg:4326":
+            data.to_crs(epsg=32662)
+            data['area'] = data['geometry'].area / 10**6
+            data.to_crs(epsg=4326)
+        else:
+            data['area'] = data['geometry'].area / 10**6
+        
+        # Calculating the aggregated values for each cluster based on the aggregation method
+        counter_files = 'A'
+        for input_file in paths["inputs"]:
+            if param["agg"][counter_files] == 'density':
+                # First, get the total load for each row
+                data['Value_'+counter_files] = data['Value_'+counter_files] * data['area']
+                for cl in data.loc[pd.notnull(data['Value_'+counter_files]), 'CL'].unique():
+                    data.loc[data['CL'] == cl, 'Value_'+counter_files] = data.loc[data['CL'] == cl, 'Value_'+counter_files].sum() / data.loc[data['CL'] == cl, 'area'].sum()
+            else:
+                for cl in data.loc[pd.notnull(data['Value_'+counter_files]), 'CL'].unique():
+                    data.loc[data['CL'] == cl, 'Value_'+counter_files] = data.loc[data['CL'] == cl, 'Value_'+counter_files].param["agg"][counter_files]
+        
+        file = data.dissolve(by='CL')
         file.reset_index(inplace=True)
 
         # Result for every part after max-p one
-        logger.info('Creating file: ' + folder_names['output_parts_max_p'] + 'max_p_part_%d.shp' % i)
-        file.to_file(driver='ESRI Shapefile', filename=folder_names['output_parts_max_p'] + 'max_p_part_%d.shp' % i)
+        logger.info('Creating file: ' + paths['parts_max_p'] + 'max_p_part_%d.shp' % i)
+        file.to_file(driver='ESRI Shapefile', filename=paths['parts_max_p'] + 'max_p_part_%d.shp' % i)
 
     print('------------------------- Merging all parts. -------------------------')
 
     logger.info('Mering all parts of max-p-1.')
-    gdf = gpd.read_file(folder_names['output_parts_max_p'] + 'max_p_part_%d.shp' % non_empty_rasters.index[0])
-    for j in non_empty_rasters.index[1:]:
-        gdf_aux = gpd.read_file(folder_names['output_parts_max_p'] + 'max_p_part_%d.shp' % j)
+    gdf = gpd.read_file(paths['parts_max_p'] + 'max_p_part_%d.shp' % non_empty_rasters[0])
+    for j in non_empty_rasters[1:]:
+        gdf_aux = gpd.read_file(paths['parts_max_p'] + 'max_p_part_%d.shp' % j)
         gdf = gpd.GeoDataFrame(pd.concat([gdf, gdf_aux], ignore_index=True))
 
     gdf['CL'] = gdf.index
     gdf['geometry'] = gdf.buffer(0)
-    logger.info('Creating file: ' + folder_names['output_parts_max_p'] + 'max_p_combined.shp')
-    gdf.to_file(driver='ESRI Shapefile', filename=folder_names['output_parts_max_p'] + 'max_p_combined.shp')
+    logger.info('Creating file: ' + paths['parts_max_p'] + 'max_p_combined.shp')
+    gdf.to_file(driver='ESRI Shapefile', filename=paths['parts_max_p'] + 'max_p_combined.shp')
 
     current_date_time = datetime.datetime.now()
     format_time = current_date_time.strftime("%Y-%m-%d_%H:%M:%S")
@@ -711,12 +695,11 @@ def max_p_algorithm(folder_names):
     print('------------------------- == -------------------------')
     logger.info('"max_p_algorithm" finished at: ' + format_time)
 
-    return True
 
-
-def max_p_algorithm_2(folder_names):
+def max_p_algorithm_2(param, paths):
     """This function runs the max-p algorithm again on the results obtained from max_p_algorithm().
-    :param folder_names = The names of all the folders created for output.
+        :param param = The parameters from config.py
+        :param paths = The paths to the rasters and to the output folders, from config.py
     """
     logger.info('Starting "max_p_algorithm_2".')
     print('------------------------- Max-p Two -------------------------')
@@ -725,22 +708,30 @@ def max_p_algorithm_2(folder_names):
     print('This part started at: ' + format_time)
     logger.info('"max_p_algorithm_2" started at: ' + format_time)
 
-    logger.info('Opening file: ' + folder_names['output_parts_max_p'] + 'max_p_combined.shp')
-    data = gpd.read_file(folder_names['output_parts_max_p'] + 'max_p_combined.shp')
-    data_scaled = MinMaxScaler().fit_transform(data['Value'].values.reshape(-1, 1))
+    logger.info('Opening file: ' + paths["parts_max_p"] + 'max_p_combined.shp')
+    data = gpd.read_file(paths["parts_max_p"] + 'max_p_combined.shp')
+    
+    # Calculate the weighted sum in 'Value', that will be used for clustering
+    counter_files = 'A'
+    data['Value'] = 0
+    for input_file in paths["inputs"]:
+        scaling = data['Value_' + counter_files].mean()
+        data['Value'] = data['Value'] + param["weights"][counter_files] * data['Value_' + counter_files] / scaling
+        counter_files = chr(ord(counter_files) + 1)
 
     logger.info('Creating weights object.')
-    w = ps.weights.Queen.from_shapefile(folder_names['output_parts_max_p'] + 'max_p_combined.shp')
-    knn1 = ps.weights.KNN.from_shapefile(folder_names['output_parts_max_p'] + 'max_p_combined.shp', k=1)
-    w = libpysal.weights.util.attach_islands(w, knn1)
-    [tt, A] = cg.connected_components(w.sparse)
-    print(A)
+    w = ps.weights.Queen.from_shapefile(paths["parts_max_p"] + 'max_p_combined.shp')
+    knnw = ps.weights.KNN.from_shapefile(paths["parts_max_p"] + 'max_p_combined.shp', k=1)
+    w = libpysal.weights.util.attach_islands(w, knnw)
+    [n_components, labels] = cg.connected_components(w.sparse)
+    print(labels)
     aa = w.islands
-    if tt > 1:
-        logger.info('In-connected areas exist. Removing them for max-p.')
-        print('In-connected areas exist')
-        for gg in range(tt):
-            ss = [uu for uu, x in enumerate(A == gg) if x]
+    if n_components > 1:
+        logger.info('Disconnected areas exist. Removing them for max-p.')
+        print('Disconnected areas exist')
+        for comp in range(n_components):
+            import pdb; pdb.set_trace()
+            ss = [uu for uu, x in enumerate(labels == comp) if x]
             dd = data.loc[ss]
             dd['F'] = 1
             dd['geometry'] = dd['geometry'].buffer(0)
@@ -748,21 +739,21 @@ def max_p_algorithm_2(folder_names):
             dd.index = [len(data)]
             Dissolve = data.drop(ss)
             Dissolve = Dissolve.append(dd)
-            knn1 = ps.weights.KNN.from_dataframe(Dissolve, k=1)
+            knnw = ps.weights.KNN.from_dataframe(Dissolve, k=1)
             for cc in range(1, len(data) - 1):
                 countern = 0
                 knn = ps.weights.KNN.from_dataframe(data, k=cc)
                 for s in range(len(ss)):
-                    if knn.neighbors[ss[s]][cc - 1] == knn1.neighbors[len(data)][0]:
-                        w.neighbors[ss[s]] = w.neighbors[ss[s]] + knn1.neighbors[len(data)]
-                        w.neighbors[knn1.neighbors[len(data)][0]] = w.neighbors[knn1.neighbors[len(data)][0]] + [ss[s]]
+                    if knn.neighbors[ss[s]][cc - 1] == knnw.neighbors[len(data)][0]:
+                        w.neighbors[ss[s]] = w.neighbors[ss[s]] + knnw.neighbors[len(data)]
+                        w.neighbors[knnw.neighbors[len(data)][0]] = w.neighbors[knnw.neighbors[len(data)][0]] + [ss[s]]
                         countern = countern + 1
                         continue
                 if countern > 0:
                     break
     logger.info('Correcting neighbors.')
     print('Correcting neighbors.')
-    w.neighbors = find_neighbors_in_shape_file(folder_names, w.neighbors)
+    w.neighbors = find_neighbors_in_shape_file(paths, w.neighbors)
     print('Neighbors corrected!')
     logger.info('Neighbors corrected.')
 
@@ -805,7 +796,7 @@ def max_p_algorithm_2(folder_names):
     return True
 
 
-def find_neighbors_in_shape_file(folder_names, existing_neighbors):
+def find_neighbors_in_shape_file(paths, existing_neighbors):
     """This function finds the neighbors in the shape file. Somehow, max-p cannot figure out the correct neighbors and
     some clusters are physically neighbors but they are not considered as neighbors. This is where this function comes
     in.
@@ -814,10 +805,11 @@ def find_neighbors_in_shape_file(folder_names, existing_neighbors):
                                 added to this matrix.
     :
     """
-    df = gpd.read_file(folder_names['output_parts_max_p'] + 'max_p_combined.shp')
+    df = gpd.read_file(paths["parts_max_p"] + 'max_p_combined.shp')
     df["NEIGHBORS"] = None
     for index, cluster_number in df.iterrows():
         # get 'not disjoint' countries
+        import pdb; pdb.set_trace()
         neighbors = df[~df.geometry.disjoint(cluster_number.geometry.buffer(0.005))].CL.tolist()
         df1 = df
         df1.crs = {'init': 'epsg:4326'}
@@ -857,7 +849,7 @@ def find_neighbors_in_shape_file(folder_names, existing_neighbors):
 
 
 
-def get_x_y_values(folder_names):
+def get_x_y_values(paths):
     """
     This function finds the rel_size and rel_std(coordinates) of the 4 corners of the x,y scatter plot between rel_size
     and rel_std.
@@ -866,20 +858,17 @@ def get_x_y_values(folder_names):
             between rel_size and rel_std.
     """
     logger.info('Getting coordinates(rel_size,rel_std) of the x,y scatter plot extreme points.')
-    logger.info('Reading csv file' + folder_names['main_folder'] + 'non_empty_rasters.csv')
-    non_empty_rasters_df = pd.read_csv(folder_names['main_folder'] + 'non_empty_rasters.csv', index_col=0)
-
-    # Getting the indices of the four points identified as corners of the x,y scatter plot between rel_size and rel_std.
-    ul_corner_index = int(non_empty_rasters_df['ul_corner'].idxmax())
-    ur_corner_index = int(non_empty_rasters_df['ur_corner'].idxmax())
-    ll_corner_index = int(non_empty_rasters_df['ll_corner'].idxmax())
-    lr_corner_index = int(non_empty_rasters_df['lr_corner'].idxmax())
+    logger.info('Reading csv file' + paths["OUT"] + 'non_empty_rasters.csv')
+    df = pd.read_csv(paths["OUT"] + 'non_empty_rasters.csv', sep=';', decimal=',', index_col=[0,1])
+    # Group by part number, and calculate the product of rel_size and rel_std
+    df = df.reset_index(inplace=False)
+    df = df.groupby(['part']).prod()
 
     # Getting the values of x_low, x_high, y_low, y_high from indices of corners. x -> rel_size and y-> rel_std.
-    ul_point = tuple(non_empty_rasters_df.loc[ul_corner_index, ['rel_size', 'rel_std']])
-    ur_point = tuple(non_empty_rasters_df.loc[ur_corner_index, ['rel_size', 'rel_std']])
-    ll_point = tuple(non_empty_rasters_df.loc[ll_corner_index, ['rel_size', 'rel_std']])
-    lr_point = tuple(non_empty_rasters_df.loc[lr_corner_index, ['rel_size', 'rel_std']])
+    ul_point = tuple(df.loc[int(df['ul_corner'].idxmax()), ['rel_size', 'rel_std']])
+    ur_point = tuple(df.loc[int(df['ur_corner'].idxmax()), ['rel_size', 'rel_std']])
+    ll_point = tuple(df.loc[int(df['ll_corner'].idxmax()), ['rel_size', 'rel_std']])
+    lr_point = tuple(df.loc[int(df['lr_corner'].idxmax()), ['rel_size', 'rel_std']])
 
     logger.debug('Coordinates of 4 points:')
     logger.debug('ul_point: %s', ul_point)
@@ -888,11 +877,10 @@ def get_x_y_values(folder_names):
     logger.debug('lr_point: %s', lr_point)
 
     # In ul_point, x = ul_point[0] and y = ul_point[1]. The same for others.
-
     return ul_point, ur_point, ll_point, lr_point
 
 
-def get_coefficients(folder_names):
+def get_coefficients(paths):
     """
     This function gets the four coefficients A,B and C for solving the 3 equations which will lead to the calculation
     of threshold in max-p-algorithm.
@@ -901,14 +889,13 @@ def get_coefficients(folder_names):
                   EXPECTED STRUCTURE: {'a': 0.556901762222155, 'b': 2.9138975880272286, 'c': 0.6164969722472001}
     """
     logger.info('Getting coefficients for threshold equation.')
-    ul_point, ur_point, ll_point, lr_point = get_x_y_values(folder_names)
+    ul_point, ur_point, ll_point, lr_point = get_x_y_values(paths)
     est = [1, 1, 1]
 
     logger.info('Running equation solver.')
     coef = fsolve(eq_solver, est, args=(ll_point, ul_point, ur_point), xtol=0.001)
 
     coef_dict = {'a': coef[0], 'b': coef[1], 'c': coef[2]}
-    #print(coef_dict)
     logger.debug('Coefficients: %s', coef)
 
     return coef_dict
@@ -931,7 +918,7 @@ def eq_solver(coef, ll_point, ul_point, ur_point):
     f = np.zeros(3)
 
     f[0] = (a * (exp(-b * (ll_point[0] + (c * ll_point[1]))))) - 0.5
-    f[1] = (a * (exp(-b * (ul_point[0] + (c * ul_point[1]))))) - 0.1
+    #f[1] = (a * (exp(-b * (ul_point[0] + (c * ul_point[1]))))) - 0.1
     f[2] = (a * (exp(-b * (ur_point[0] + (c * ur_point[1]))))) - 0.01
 
     return f
@@ -940,18 +927,12 @@ def eq_solver(coef, ll_point, ul_point, ur_point):
 if __name__ == '__main__':
     print('------------------------- Starting Clustering -------------------------')
     paths, param, logger = initialization()
-    cut_raster_file_to_smaller_boxes(param, paths)
-
-
-    #result = choose_reference_values(folders)
-
-    #result = identify_number_of_optimum_clusters(folders)
-
-    #result = k_means_clustering(folders)
-
-    #result = polygonize_after_k_means(folders)
-
-    #result = max_p_algorithm(folders)
+    #cut_raster_file_to_smaller_boxes(param, paths)
+    #choose_reference_values(param, paths)
+    #identify_number_of_optimum_clusters(param, paths)
+    #k_means_clustering(param, paths)
+    #polygonize_after_k_means(param, paths)
+    max_p_algorithm(param, paths)
 
     #result = max_p_algorithm_2(folders)
 
