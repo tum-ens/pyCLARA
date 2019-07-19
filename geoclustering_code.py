@@ -548,12 +548,14 @@ def max_p_algorithm(param, paths):
 
         logger.info('Creating weights object.')
         w = ps.weights.Queen.from_shapefile(paths["polygons"] + 'result_%d.shp' % i)
+        import pdb; pdb.set_trace()
 
         # This loop is used to force any disconnected group of polygons to be assigned to the nearest neighbors
         if len(data) > 1:
             knnw = ps.weights.KNN.from_shapefile(paths["polygons"] + 'result_%d.shp' % i, k=1)
             logger.info('Attaching islands if any to nearest neighbor.')
             w = libpysal.weights.util.attach_islands(w, knnw)
+            import pdb; pdb.set_trace()
 
             [n_components, labels] = cg.connected_components(w.sparse)
             if n_components > 1:
@@ -586,22 +588,21 @@ def max_p_algorithm(param, paths):
         logger.info('Getting coefficients for threshold equation.')
         coef = get_coefficients(paths)
         logger.debug('Coefficients:', coef)
-        print(i, (coef['a'] * (exp(-coef['b'] * (group_by_part.loc[i, 'rel_size'] + (coef['c'] * group_by_part.loc[i, 'rel_std']))))))
-        thr = (coef['a'] * (exp(-coef['b'] * (group_by_part.loc[i, 'rel_size'] + (coef['c'] * group_by_part.loc[i, 'rel_std']))))) * data['Value'].sum() * 0.5
+
+        thr = (coef['a'] * (exp(-coef['b'] * (group_by_part.loc[i, 'rel_size'] + (coef['c'] * group_by_part.loc[i, 'rel_std']))))) * data['Value'].sum() * 0.25
         logger.debug('Threshold complete: ' + str(thr))
         # Threshold here was used depending on the size and standard deviation
         if len(data) == 1:
             thr = data['Value'].sum() - 0.01
-        #random_no = rd.randint(1000, 1500)  # The range is selected randomly.
-        #logger.debug('Random number for seed: ' + str(random_no))
-        #np.random.seed(random_no)
+        rd.seed(100)
+        np.random.seed(100)
         print('Running max-p.')
         logger.info('Running max-p for part: ' + str(i))
-        r = ps.region.maxp.Maxp(w, data['Value'].values.reshape(-1, 1), floor=thr, floor_variable=data['Value'], initial=5000)
+        r = ps.region.maxp.Maxp(w, data['Value'].values.reshape(-1, 1), floor=thr, floor_variable=data['Value'], initial=100)
         print('Number of clusters:', end='')
         print(r.p)
         logger.info('Number of clusters after max-p: ' + str(r.p))
-        # print('Type:', type(w))
+
         if r.p == 0:
             import pdb; pdb.set_trace()
             logger.info('No initial solution found.')
@@ -929,9 +930,9 @@ if __name__ == '__main__':
     paths, param, logger = initialization()
     #cut_raster_file_to_smaller_boxes(param, paths)
     #choose_reference_values(param, paths)
-    #identify_number_of_optimum_clusters(param, paths)
-    #k_means_clustering(param, paths)
-    #polygonize_after_k_means(param, paths)
+    identify_number_of_optimum_clusters(param, paths)
+    k_means_clustering(param, paths)
+    polygonize_after_k_means(param, paths)
     max_p_algorithm(param, paths)
 
     #result = max_p_algorithm_2(folders)

@@ -25,7 +25,7 @@ param["weights"] = {'A': 1, 'B': 1, 'C': 1, 'D': 1}
 # If you want to override the function "identify_number_of_optimum_clusters" that uses the elbow method,
 # you can set the number of the maximum clusters for the reference raster yourself. Otherwise, comment the
 # following line.
-param["max_no_of_cl"] = 1800
+param["max_no_of_cl"] = 200
 
 if platform.startswith('win'):
     # Windows Root Folder
