@@ -72,8 +72,6 @@ for input_file in paths["inputs"]:
 ## Output Folders
 timestamp = str(datetime.datetime.now().strftime("%Y%m%dT%H%M%S"))
 # If you want to use existing folder, input timestamp of that folder in line below and uncomment it.
-#timestamp = "20190713T165931"
-#timestamp = "20190617T142740"
 timestamp = "20190715T125023"
 paths["OUT"] = root + "02 Shapefiles for regions" + fs + "Clustering outputs" + fs + region + fs + timestamp + fs
 if not os.path.isdir(paths["OUT"]):
