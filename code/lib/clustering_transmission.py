@@ -1,17 +1,4 @@
-import geopandas as gpd
-import pandas as pd
-import numpy as np
-import fiona
-import logging
-import datetime
 
-from shapely.geometry.point import Point
-from shapely.geometry.linestring import LineString
-from shapely.geometry import mapping
-from shapely.ops import polygonize
-from scipy.spatial import Voronoi
-
-import pdb
 
 
 def cluster_trans_file(trans_file_path, voronoi_file_path, no_of_clusters=28):
