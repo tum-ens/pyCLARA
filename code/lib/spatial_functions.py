@@ -25,7 +25,7 @@ def array_to_raster(array, destination_file, input_raster_file):
     dataset.SetProjection(wkt_projection)
     dataset.GetRasterBand(1).WriteArray(array)
     dataset.FlushCache()
-	
+
 
 def polygonize_raster(input_file, output_shapefile, column_name):
     """

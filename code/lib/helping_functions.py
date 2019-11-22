@@ -1,12 +1,13 @@
-
+from lib.util import *
 
 
 def array_to_raster(array, destination_file, input_raster_file):
-    """This function changes from array back to raster (used after kmeans algorithm).
+    """
+    This function changes from array back to raster (used after kmeans algorithm).
+
     :param array = The array which needs to be converted into a raster.
     :param destination_file = The file name with which the created raster file is saved.
-    :param input_raster_file = The original input raster file from which the original coordinates are taken to convert
-                               the array back to raster.
+    :param input_raster_file = The original input raster file from which the original coordinates are taken to convert the array back to raster.
     """
     source_raster = gdal.Open(input_raster_file)
     (upper_left_x, x_size, x_rotation, upper_left_y, y_rotation, y_size) = source_raster.GetGeoTransform()
@@ -29,7 +30,9 @@ def array_to_raster(array, destination_file, input_raster_file):
 
 
 def polygonize(input_file, output_shape_file, column_name):
-    """This function is used to change from a raster to polygons as max-p algorithm only works with polygons.
+    """
+    This function is used to change from a raster to polygons as max-p algorithm only works with polygons.
+
     :param input_file = The file which needs to be converted to a polygon from a raster.
     :param output_shape_file = The shape file which is generated after polygonization.
     :param column_name = The column name, the values from which are used for conversion.

@@ -28,7 +28,9 @@ from scipy.spatial import cKDTree
 def connect_islands(trans_file_path):
     """
     This function connects islands of transmission network.
+
     :param trans_file_path: GeoDataFrame of the transmission network.
+
     :return: Shapefile with connections between islands.
     """
     # Reading transmission file as geoDataFrame.
@@ -136,9 +138,11 @@ def connect_islands(trans_file_path):
 def ckd_nearest(gdf_a, gdf_b, bcol):
     """
     This function finds the distance and the nearest points in gdf_b for every point in gdf_a.
+
     :param gdf_a: GeoDataFrame of Points.
     :param gdf_b: GeoDataFrame of Points.
     :param bcol: Column that should be listed in the resulting DataFrame.
+
     :return:
     """
     na = np.array(list(zip(gdf_a.geometry.x, gdf_a.geometry.y)))
@@ -154,8 +158,10 @@ def clean_clipped_trans_file(clipped_file, original_file):
     """
     This function cleans the clipped transmission file by replacing the MULTILINESTRING instances with LINESTRING
     instances. MULTILINESTRING instances are formed as a result of clipping.
+
     :param clipped_file:  Gridkit transmission file clipped with Europe map.
     :param original_file: Original Gridkit file.
+
     :return:
     """
     # Reading the transmission file.
