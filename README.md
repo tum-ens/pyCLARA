@@ -1,8 +1,6 @@
 # geoclustering
 Tool to cluster high-resolution spatial data into contiguous, homogeneous regions
 
-Authors: Kais Siala, Mohammad Youssed Mahfouz, Waleed Sattar Khan
-
 [![Documentation Status](https://readthedocs.org/projects/geoclustering/badge/?version=latest)](http://geoclustering.readthedocs.io/en/latest/?badge=latest)
 
 ## What is geoclustering?

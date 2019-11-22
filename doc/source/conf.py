@@ -20,7 +20,7 @@ import sphinx_rtd_theme
 
 project = 'geoclustering'
 copyright = 'ENS 2019'
-author = 'Kais Siala, Waleed Sattar Khan, Mohammad Youssef Mahfouz'
+author = 'Kais Siala, Mohammad Youssef Mahfouz, Waleed Sattar Khan'
 
 # The full version, including alpha/beta/rc tags
 release = '1.0.0'
