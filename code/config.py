@@ -151,7 +151,7 @@ def kmeans_parameters(param):
     :return param: The updated dictionary param.
     :rtype: dict
     """
-    param["kmeans"] = {"method": "reference_part", # Options: "reference_part" or "maximum_number"
+    param["kmeans"] = {"method": "maximum_number", # Options: "reference_part" or "maximum_number"
                        "ratio_size_to_std": 7/3,
                        "reference_part": {"min": 50,
                                           "max": 150,

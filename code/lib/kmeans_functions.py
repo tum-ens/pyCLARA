@@ -100,8 +100,6 @@ def identify_opt_number_of_clusters(paths, param, part, size_of_raster, std_of_r
     size_max = df.loc['size_max', 'value']
     std_max = df.loc['std_max', 'value']
     
-    
-    
     coef_std = 1 / (1 + param["kmeans"]["ratio_size_to_std"])
     coef_size = 1 - coef_std
     
@@ -116,17 +114,17 @@ def identify_opt_number_of_clusters(paths, param, part, size_of_raster, std_of_r
         # Group by part
         group_by_part = non_empty_rasters.reset_index(inplace=False)
         group_by_part = group_by_part[["part", "rel_size", "rel_std"]].groupby(['part']).max()
-        group_by_part["coefficient"] = coef_size * (size_of_raster / size_max) + coef_std * (std_of_raster / std_max)
+        group_by_part["coefficient"] = coef_size * group_by_part["rel_size"] + coef_std * group_by_part["rel_std"]
         group_by_part["share"] = group_by_part["coefficient"] / group_by_part["coefficient"].sum()
         
         maximum_no_of_clusters = int(df.loc['max_no_of_cl_total', 'value'])
-        optimum_no_of_clusters_for_raster = int(np.ceil(group_by_part.loc[i, "share"] * maximum_no_of_clusters))
+        optimum_no_of_clusters_for_raster = int(np.ceil(group_by_part.loc[part, "share"] * maximum_no_of_clusters))
     
     if std_of_raster == 0:
         optimum_no_of_clusters_for_raster = 1
     if size_of_raster < optimum_no_of_clusters_for_raster:
         optimum_no_of_clusters_for_raster = size_of_raster
-    print('Optimum clusters for part ' + str(i) + ' = ' + str(optimum_no_of_clusters_for_raster))
+    print('Optimum clusters for part ' + str(part) + ' = ' + str(optimum_no_of_clusters_for_raster))
     
     return optimum_no_of_clusters_for_raster
     
