@@ -6,7 +6,7 @@ Start with the configuration:
 .. toctree::
    :maxdepth: 3
    
-   config
+   source/config
    
 You can run the code by typing::
 
@@ -17,19 +17,19 @@ You can run the code by typing::
 .. toctree::
    :maxdepth: 3
    
-   geoclustering_code
+   source/geoclustering_code
    
 For the hierarchical clustering of the transmission network, use the following scripts:
 
 .. toctree::
    :maxdepth: 3
 
-   clustering_transmission
-   connecting_transmission_islands
+   source/clustering_transmission
+   source/connecting_transmission_islands
 
 Helping functions for the models are included in ``helping_functions.py``.
 
 .. toctree::
    :maxdepth: 3
    
-   helping_functions
+   source/helping_functions

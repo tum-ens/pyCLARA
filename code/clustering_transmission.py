@@ -17,6 +17,7 @@ import pdb
 def cluster_trans_file(trans_file_path, voronoi_file_path, no_of_clusters=28):
     """
     This function clusters the transmission network into a specified number of clusters.
+
     :param trans_file_path: The transmission network shapefile path.
     :param voronoi_file_path: The clipped voronoi polygons file path.
     :param no_of_clusters: The number of clusters that the map will be cut into.
@@ -500,6 +501,7 @@ def cluster_trans_file(trans_file_path, voronoi_file_path, no_of_clusters=28):
 def create_voronoi_polygons(points_list):
     """
     This function makes voronoi polygons by taking a points list as input.
+
     :param points_list: The points list is used to make voronoi polygons.
     :return:
     """
