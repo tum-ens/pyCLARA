@@ -1,0 +1,7 @@
+name: geo_clust
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - Working in progress ... 
+prefix: D:\Miniconda3\envs\geo_clust

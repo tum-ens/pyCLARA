@@ -68,7 +68,7 @@ def max_p_algorithm_new(paths, param):
                                 continue
                         if countern > 0:
                             break
-        #Get coefficients for threshold equation
+        # Get coefficients for threshold equation
         coef = get_coefficients(paths)
 
         # Calculate threshold depending on the size and standard deviation
@@ -135,8 +135,7 @@ def max_p_algorithm_new(paths, param):
             data.to_crs(epsg=4326)
         else:
             data['area'] = data['geometry'].area / 10**6
-        
-        
+
         # Calculate the aggregated values for each cluster based on the aggregation method
         for counter_files in range(len(paths["inputs"])):
             raster_name = param["raster_names"].split(" - ")[counter_files][:10]
@@ -171,7 +170,8 @@ def max_p_algorithm_new(paths, param):
 
 
 def max_p_algorithm(paths, param):
-    """This function applies the max-p algorithm to the obtained polygons.
+    """
+    This function applies the max-p algorithm to the obtained polygons.
     
     :param param: The parameters from config.py
     :param paths: The paths to the rasters and to the output folders, from config.py
@@ -237,7 +237,7 @@ def max_p_algorithm(paths, param):
                                 continue
                         if countern > 0:
                             break
-        #Get coefficients for threshold equation
+        # Get coefficients for threshold equation
         coef = get_coefficients(paths)
 
         # Calculate threshold depending on the size and standard deviation
@@ -304,8 +304,7 @@ def max_p_algorithm(paths, param):
             data.to_crs(epsg=4326)
         else:
             data['area'] = data['geometry'].area / 10**6
-        
-        
+
         # Calculate the aggregated values for each cluster based on the aggregation method
         for counter_files in range(len(paths["inputs"])):
             raster_name = param["raster_names"].split(" - ")[counter_files][:10]
@@ -340,10 +339,13 @@ def max_p_algorithm(paths, param):
 
 
 def max_p_algorithm_2(paths, param):
-    """This function runs the max-p algorithm again on the results obtained from max_p_algorithm().
-        :param param = The parameters from config.py
-        :param paths = The paths to the rasters and to the output folders, from config.py
     """
+    This function runs the max-p algorithm again on the results obtained from max_p_algorithm().
+
+    :param param = The parameters from config.py
+    :param paths = The paths to the rasters and to the output folders, from config.py
+    """
+
     logger.info('Starting "max_p_algorithm_2".')
     print('------------------------- Max-p Two -------------------------')
     current_date_time = datetime.datetime.now()
@@ -440,14 +442,15 @@ def max_p_algorithm_2(paths, param):
 
 
 def find_neighbors_in_shape_file(paths, existing_neighbors):
-    """This function finds the neighbors in the shape file. Somehow, max-p cannot figure out the correct neighbors and
+    """
+    This function finds the neighbors in the shape file. Somehow, max-p cannot figure out the correct neighbors and
     some clusters are physically neighbors but they are not considered as neighbors. This is where this function comes
     in.
+
     :param folder_names = The names of all the folders created for output.
-    :param existing_neighbors = The neighbors matrix that is created by using w and knn. The new neighbors are to be
-                                added to this matrix.
-    :
+    :param existing_neighbors = The neighbors matrix that is created by using w and knn. The new neighbors are to be added to this matrix.
     """
+
     df = gpd.read_file(paths["parts_max_p"] + 'max_p_combined.shp')
     df["NEIGHBORS"] = None
     for index, cluster_number in df.iterrows():
@@ -493,9 +496,10 @@ def get_coefficients(paths):
     """
     This function gets the coefficients A, B and C for solving the 3 equations which will lead to the calculation
     of threshold in max-p algorithm.
+
     :param paths: The names of all the folders created for output.
-    :return coef: The coefficient values for A, B and C returned as a dictionary.
-                  EXPECTED STRUCTURE: {'a': 0.556901762222155, 'b': 2.9138975880272286, 'c': 0.6164969722472001}
+
+    :return coef: The coefficient values for A, B and C returned as a dictionary. EXPECTED STRUCTURE: {'a': 0.556901762222155, 'b': 2.9138975880272286, 'c': 0.6164969722472001}
     """
     # Get coefficients for threshold equation
     ul_point, ur_point, ll_point, lr_point = get_x_y_values(paths)
@@ -512,10 +516,12 @@ def eq_solver(coef, ll_point, ul_point, ur_point):
     """
     This function serves as the solver to find coefficient values A, B and C for our defined function which is used to
     calculate the threshold.
+
     :param coef: The coefficients which are calculated
     :param ll_point: Coordinates of lower left point.
     :param ul_point: Coordinates of upper left point.
     :param ur_point: Coordinates of upper right point.
+
     :return f: Coefficient values for A, B and C in a numpy array. A is f[0], B is f[1] and C is f[2].
     """
     A = coef[0]

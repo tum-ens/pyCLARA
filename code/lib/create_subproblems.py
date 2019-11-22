@@ -1,8 +1,13 @@
 from lib.spatial_functions import calc_region, array2raster
 from lib.util import *
 
+
 def cut_raster(paths, param):
     """
+
+    :param paths:
+    :param param:
+    :return:
     """
     if param["use_shapefile"]:
         cut_raster_using_shapefile(paths, param)
@@ -11,7 +16,8 @@ def cut_raster(paths, param):
 
 
 def cut_raster_using_boxes(paths, param):
-    """This function converts the raster file into a m*n boxes with m rows and n columns.
+    """
+    This function converts the raster file into a m*n boxes with m rows and n columns.
     
     :param param: The parameters from config.py
     :param paths: The paths to the rasters and to the output folders, from config.py
@@ -71,7 +77,8 @@ def cut_raster_using_boxes(paths, param):
     
     
 def cut_raster_using_shapefile(paths, param):
-    """This function converts the raster file into ...
+    """
+    This function converts the raster file into ...
     
     :param param: The parameters from config.py
     :param paths: The paths to the rasters and to the output folders, from config.py

@@ -1,7 +1,7 @@
-helping\_functions module
+kmeans\_functions module
 ========================================
 
-.. automodule:: lib.helping_functions
+.. automodule:: lib.kmeans_functions
    :members:
    :undoc-members:
    :show-inheritance:

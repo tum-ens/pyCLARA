@@ -30,15 +30,16 @@ import inspect
 import math
 import rasterio
 from rasterio import mask, MemoryFile
+import json
 
 
 def get_x_y_values(paths):
     """
     This function finds the rel_size and rel_std(coordinates) of the 4 corners of the x,y scatter plot between rel_size
     and rel_std.
-    :param folder_names: = The names of all the folders created for output.
-    :return: Coordinates of the upper left, upper right, lower left and lower right points of the x,y scatter plot
-            between rel_size and rel_std.
+
+    :param paths: = The names of all the folders created for output.
+    :return: Coordinates of the upper left, upper right, lower left and lower right points of the x,y scatter plot between rel_size and rel_std.
     """
     
     # 'Reading CSV file non_empty_rasters

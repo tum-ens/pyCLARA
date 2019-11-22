@@ -1,7 +1,7 @@
-helping\_functions module
+create\_subproblems module
 ========================================
 
-.. automodule:: lib.helping_functions
+.. automodule:: lib.create_subproblems
    :members:
    :undoc-members:
    :show-inheritance:
