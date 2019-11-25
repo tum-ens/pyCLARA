@@ -16,14 +16,14 @@ def initialization():
 
     # Check whether the inputs are correct
     if not len(paths["inputs"]):
-        print("No input file given!")
+        warn("No input file given", UserWarning)
         sys.exit(0)
     for input_file in paths["inputs"]:
         if not os.path.isfile(input_file):
-            print("File does not exist: " + input_file)
+            warn("File does not exist: " + input_file, UserWarning)
             sys.exit(0)
-        elif not input_file.endswith(".tif"):
-            print("File is not raster: " + input_file)
+        elif not input_file.endswith('.tif'):
+            warn("File is not raster: " + input_file, UserWarning)
             sys.exit(0)
 
     # Check that all rasters have the same scope and resolution
@@ -38,7 +38,7 @@ def initialization():
             x_size_old = x_size
             y_size_old = y_size
         elif (Crd_all_old != Crd_all).any() or (x_size_old != x_size) or (y_size_old != y_size):
-            print("Not the same scope / resolution!")
+            warn('Not the same scope / resolution!', UserWarning)
             sys.exit(0)
         param["Crd_all"] = Crd_all
         param["res_desired"] = np.array([abs(x_size), abs(y_size)])
