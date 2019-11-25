@@ -117,7 +117,7 @@ def cut_raster_using_shapefile(paths, param):
 
             # Opening the raster file as a dataset
             with rasterio.open(input_file) as src:
-                dataset = src.read(1)
+                dataset = np.flipud(src.read(1))
 
             # Calculate masked array
             dataset_masked = dataset * A_subregion_extended
@@ -125,10 +125,9 @@ def cut_raster_using_shapefile(paths, param):
             dataset_masked = dataset_masked[Ind_reg[0, 2] : Ind_reg[0, 0], Ind_reg[0, 3] : Ind_reg[0, 1]]
 
             # Write masked array
-            output_path = paths['sub_rasters'] + raster_name + '_sub_part_%d.tif' % (reg+1)
+            output_path = paths["sub_rasters"] + raster_name + "_sub_part_%d.tif" % (reg + 1)
             array_to_raster(dataset_masked, output_path, input_file)
-            print('Created part: ' + raster_name + '_sub_part_' + str(reg+1))
-
+            print("Created part: " + raster_name + "_sub_part_" + str(reg + 1))
 
     # Writing the data related to map parts to input_stats.csv file for further use.
     df = pd.read_csv(paths["input_stats"], sep=";", decimal=",", index_col=0)

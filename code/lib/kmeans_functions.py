@@ -138,7 +138,7 @@ def identify_opt_number_of_clusters(paths, param, part, size_of_raster, std_of_r
         optimum_no_of_clusters_for_raster = 1
     if size_of_raster < optimum_no_of_clusters_for_raster:
         optimum_no_of_clusters_for_raster = size_of_raster
-    print("Optimum clusters for part " + str(part) + " is " + str(optimum_no_of_clusters_for_raster))
+    print("Optimum number of clusters for part " + str(part) + " is " + str(optimum_no_of_clusters_for_raster))
 
     return optimum_no_of_clusters_for_raster
 

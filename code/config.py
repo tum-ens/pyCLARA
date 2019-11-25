@@ -263,4 +263,7 @@ def output_paths(paths, param):
     # Combined map after max-p 1
     paths["max_p_combined"] = paths["parts_max_p"] + "max_p_combined.shp"
 
+    # Final result
+    paths["output"] = paths["final_output"] + "final_result.shp"
+
     return paths
