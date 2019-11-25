@@ -46,12 +46,12 @@ def general_settings():
     paths = {}
     fs = os.path.sep
     current_folder = os.path.dirname(os.path.abspath(__file__))
-    root = str(Path(current_folder).parent.parent.parent)
+    root = str(Path(current_folder).parent)
     # For use at TUM ENS
     if root[-1] != fs:
-        root = root + fs + "Database_KS" + fs
+        root = root + fs + "Database_example" + fs
     else:
-        root = root + "Database_KS" + fs
+        root = root + "Database_example" + fs
 
     return paths, param
 
