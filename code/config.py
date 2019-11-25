@@ -282,4 +282,7 @@ def output_paths(paths, param):
     # Final result
     paths["output"] = paths["final_output"] + "final_result.shp"
 
+    # Final result
+    paths["output"] = paths["final_output"] + "final_result.shp"
+
     return paths

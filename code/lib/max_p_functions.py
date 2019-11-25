@@ -85,48 +85,9 @@ def max_p_parts(paths, param):
         if r.p == 0:
             import pdb
 
+            # Try to figure out the problem - might not occur anymore in newest version
             pdb.set_trace()
-            # print('No initial solution found. Removing disconnected areas again.')
-            # gal = libpysal.open('%d.gal' % i, 'w')
-            # gal.write(w)
-            # gal.close()
-            # gal = libpysal.open('%d.gal' % i, 'r')
-            # w = gal.read()
-            # gal.close()
-            # [n_components, labels] = cg.connected_components(w.sparse)
-            # print('Disconnected areas exist again')
-            # for comp in range(n_components):
-            # import pdb; pdb.set_trace()
-            # ss = [uu for uu, x in enumerate(labels == comp) if x]
-            # dd = data.loc[ss]
-            # dd['F'] = 1
-            # dd['geometry'] = dd['geometry'].buffer(0)
-            # dd = dd.dissolve(by='F')
-            # dd.index = [len(data)]
-            # dissolve = data.drop(ss)
-            # dissolve = dissolve.append(dd)
-            # knnw = ps.weights.KNN.from_dataframe(dissolve, k=1)
-            # for cc in range(1, len(data) - 1):
-            # countern = 0
-            # knn = ps.weights.KNN.from_dataframe(data, k=cc)
-            # for s in range(len(ss)):
-            # if knn.neighbors[ss[s]][cc - 1] == knnw.neighbors[len(data)][0]:
-            # w.neighbors[str(ss[s])] = w.neighbors[str(ss[s])] + [str(knnw.neighbors[len(data)][0])]
-            # w.neighbors[str(knnw.neighbors[len(data)][0])] = w.neighbors[
-            # str(knnw.neighbors[len(data)][0])] + [
-            # str(ss[s])]
-            # countern = countern + 1
-            # continue
-            # if countern > 0:
-            # break
 
-            # np.random.seed(random_no)
-            # print('Running max-p again.')
-            # logger.info('Running max-p again on part: ' + str(i))
-            # r = ps.region.maxp.Maxp(w, data['Value'].values.reshape(-1, 1), floor=thr, floor_variable=data['Value'], initial=5000)
-            # print('Number of clusters:')
-            # print(r.p)
-            # logger.info('Number of clusters after max-p: ' + str(r.p))
         data["CL"] = pd.Series(r.area2region).reindex(data.index)
         data["geometry"] = data["geometry"].buffer(0)
 
@@ -209,7 +170,7 @@ def max_p_whole_map(paths, param, combined_file):
 
     data["CL"] = pd.Series(r.area2region).reindex(data.index)
     data["geometry"] = data.buffer(0)
-    
+
     # Calculating the area of each cluster using Lambert Cylindrical Equal Area EPSG:9835 (useful for the density, but needs a projection)
     if param["CRS"] == "epsg:4326":
         data.to_crs("+proj=cea")
@@ -234,7 +195,7 @@ def max_p_whole_map(paths, param, combined_file):
 
     output = data.dissolve(by="CL")
     output.reset_index(inplace=True)
-        
+
     output["NAME_SHORT"] = ["CL" + str(output.loc[i, "CL"]).zfill(2) for i in output.index]
     output.crs = {"init": param["CRS"]}
     output.to_file(driver="ESRI Shapefile", filename=paths["output"])  # Final file
