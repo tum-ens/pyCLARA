@@ -1,7 +1,10 @@
 # geoclustering
-Tool to cluster high-resolution spatial data into contiguous, homogeneous regions
-
 [![Documentation Status](https://readthedocs.org/projects/geoclustering/badge/?version=latest)](http://geoclustering.readthedocs.io/en/latest/?badge=latest)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![All Contributors](https://img.shields.io/badge/all_contributors-2-orange.svg?style=flat-square)](#contributors)
+
+Tool to cluster high-resolution spatial data into contiguous, homogeneous regions
 
 ## What is geoclustering?
 geoclustering is a python-based code which creates geographical clusters from high resolution maps. When used with rasters, the algorithm uses kmeans++ and max-p regions to create contiguous non-concentrated clusters. geoclustering works with any high-resolution map with hundreds of millions of pixels.
