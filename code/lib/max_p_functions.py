@@ -126,7 +126,7 @@ def max_p_parts(paths, param):
             data.to_crs(epsg=4326)
         else:
             data['area'] = data['geometry'].area / 10**6
-        
+
         # Calculate the aggregated values for each cluster based on the aggregation method
         for counter_files in range(len(paths["inputs"])):
             raster_name = param["raster_names"].split(" - ")[counter_files][:10]
@@ -267,11 +267,11 @@ def correct_neighbors_in_shapefile(paths, param, existing_neighbors):
     """This function finds the neighbors in the shapefile. Somehow, max-p cannot figure out the correct neighbors and
     some clusters are physically neighbors but they are not considered as neighbors. This is where this function comes
     in.
+
     :param folder_names = The names of all the folders created for output.
-    :param existing_neighbors = The neighbors matrix that is created by using w and knn. The new neighbors are to be
-                                added to this matrix.
-    :
+    :param existing_neighbors = The neighbors matrix that is created by using w and knn. The new neighbors are to be added to this matrix.
     """
+
     df = gpd.read_file(paths["max_p_combined"])
     
     # Create copy and project it using Lambert Cylindrical Equal Area EPSG:9835, if no projection given
@@ -280,7 +280,6 @@ def correct_neighbors_in_shapefile(paths, param, existing_neighbors):
     if param["CRS"] == "epsg:4326":
         df_copy.to_crs("+proj=cea")
         
-
     df["NEIGHBORS"] = None
     for index, cluster in df.iterrows():
         import pdb; pdb.set_trace()
@@ -324,9 +323,10 @@ def get_coefficients(paths):
     """
     This function gets the coefficients A, B and C for solving the 3 equations which will lead to the calculation
     of threshold in max-p algorithm.
+
     :param paths: The names of all the folders created for output.
-    :return coef: The coefficient values for A, B and C returned as a dictionary.
-                  EXPECTED STRUCTURE: {'a': 0.556901762222155, 'b': 2.9138975880272286, 'c': 0.6164969722472001}
+
+    :return coef: The coefficient values for A, B and C returned as a dictionary. EXPECTED STRUCTURE: {'a': 0.556901762222155, 'b': 2.9138975880272286, 'c': 0.6164969722472001}
     """
     # Get coefficients for threshold equation
     ul_point, ur_point, ll_point, lr_point = get_x_y_values(paths)
@@ -343,10 +343,12 @@ def eq_solver(coef, ll_point, ul_point, ur_point):
     """
     This function serves as the solver to find coefficient values A, B and C for our defined function which is used to
     calculate the threshold.
+
     :param coef: The coefficients which are calculated
     :param ll_point: Coordinates of lower left point.
     :param ul_point: Coordinates of upper left point.
     :param ur_point: Coordinates of upper right point.
+
     :return f: Coefficient values for A, B and C in a numpy array. A is f[0], B is f[1] and C is f[2].
     """
     A = coef[0]

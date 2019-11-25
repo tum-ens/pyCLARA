@@ -1,12 +1,15 @@
+=============
 geoclustering
-==============
+=============
+
+---------------------------------------------------------------------------------
 Tool to cluster high-resolution spatial data into contiguous, homogeneous regions
-----------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
 
 :Code developers: Kais Siala, Mohammad Youssed Mahfouz, Waleed Sattar Khan
 :Documentation authors:	Kais Siala		
 :Maintainers: Kais Siala <kais.siala@tum.de>
-:Organization: `Chair of Renewable and Sustainable Energy Systems`_, Technical University of Munich
+:Organization: `Chair of Renewable and Sustainable Energy Systems <http://www.ens.ei.tum.de/en/homepage/>`_, Technical University of Munich
 :Version: |version|
 :Date: |today|
 :License:
@@ -46,7 +49,23 @@ Contents
 User manual
 ^^^^^^^^^^^^^
 
-to be completed
+These documents give a general overview and help you getting started from the installation to you first running model.
+
+.. toctree::
+   :maxdepth: 3
+   
+   user_manual
+
+Theory documentation
+^^^^^^^^^^^^^^^^^^^^
+
+Continue here if you want to understand the theoretical conception of the model,
+the logic behind the equations, and the structure of the features.
+
+.. toctree::
+   :maxdepth: 2
+
+   theory
 
 Technical documentation
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -58,9 +77,22 @@ Continue here if you want to understand in detail the model implementation.
    implementation
 
 
+Dependencies
+------------
+A list of the used libraries is available in the environment file:
+
+.. literalinclude:: ../env/geo_clust.yml
+
+Bibliography	
+------------
+
+.. toctree::
+   :maxdepth: 1
+   
+   zref
 
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`

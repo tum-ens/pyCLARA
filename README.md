@@ -25,4 +25,4 @@ This code is useful if:
 
 ## Related publications
 
-* Siala, Kais; Mahfouz, Mohammad Youssef: [Impact of the choice of regions on energy system models](http://doi.org/https://doi.org/10.1016/j.esr.2019.100362). Energy Strategy Reviews 25, 2019, 75-85.
+* Siala, Kais; Mahfouz, Mohammad Youssef: [Impact of the choice of regions on energy system models](https://doi.org/10.1016/j.esr.2019.100362). Energy Strategy Reviews 25, 2019, 75-85.

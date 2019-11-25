@@ -3,7 +3,8 @@ from lib.util import *
 
     
 def calculate_stats_for_non_empty_rasters(paths, param):
-    """This function ...
+    """
+    This function ...
     
     :param param: The parameters from config.py
     :param paths: The paths to the rasters and to the output folders, from config.py
@@ -65,8 +66,10 @@ def calculate_stats_for_non_empty_rasters(paths, param):
 
     timecheck("End")
 
+
 def choose_ref_part(paths, param):
-    """This function chooses the reference part for the function identify_number_of_optimum_clusters.
+    """
+    This function chooses the reference part for the function identify_number_of_optimum_clusters.
     The reference part is chosen based on the product of relative size and relative standard deviation.
     The part with the largest product in all the input files is chosen.
     
@@ -87,7 +90,7 @@ def choose_ref_part(paths, param):
     # Write the data related to the reference part to input_stats file for further use
     df.loc['ref_part_name', 'value'] = ref_part
     df.to_csv(paths["input_stats"], sep=';', decimal=',')
-	
+
 
 def identify_opt_number_of_clusters(paths, param, part, size_of_raster, std_of_raster):
     """
@@ -358,6 +361,7 @@ class OptimumPoint:
     This class is used in the elbow method to identify the maximum distance between the end point and the start point of
     the curve created between no. of clusters and inertia.
     """
+
     def __init__(self, init_x, init_y):
         self.x = init_x
         self.y = init_y
