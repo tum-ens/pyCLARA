@@ -4,19 +4,19 @@ from lib.kmeans_functions import *
 from lib.max_p_functions import *
 from lib.util import *
 
-if __name__ == '__main__':
-    
+if __name__ == "__main__":
+
     paths, param = initialization()
-    
-    cut_raster(paths, param)
-    
+
+    # cut_raster(paths, param)
+
     # # k-means functions
-    calculate_stats_for_non_empty_rasters(paths, param)
-    if param["kmeans"]["method"] == "reference_part":
-        choose_ref_part(paths, param)
-        identify_max_number_of_clusters_in_ref_part(paths, param)
-    k_means_clustering(paths, param)
-    polygonize_after_k_means(paths, param)
-    
+    # calculate_stats_for_non_empty_rasters(paths, param)
+    # if param["kmeans"]["method"] == "reference_part":
+        # choose_ref_part(paths, param)
+        # identify_max_number_of_clusters_in_ref_part(paths, param)
+    # k_means_clustering(paths, param)
+    # polygonize_after_k_means(paths, param)
+
     # max-p functions
     max_p_clustering(paths, param)

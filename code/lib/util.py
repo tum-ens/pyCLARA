@@ -21,19 +21,18 @@ from sklearn import cluster
 import shutil
 import scipy.sparse.csgraph as cg
 import libpysal
+import math
 from math import sqrt, exp
 import datetime
 import pprint
 import sys
 import fiona
 import inspect
-import math
 import rasterio
 from rasterio import mask, MemoryFile
 import warnings
 from warnings import warn
 import json
-
 
 
 def get_x_y_values(paths):
@@ -44,19 +43,19 @@ def get_x_y_values(paths):
     :param paths: = The names of all the folders created for output.
     :return: Coordinates of the upper left, upper right, lower left and lower right points of the x,y scatter plot between rel_size and rel_std.
     """
-    
+
     # 'Reading CSV file non_empty_rasters
-    df = pd.read_csv(paths["non_empty_rasters"], sep=';', decimal=',', index_col=[0,1])
-    
+    df = pd.read_csv(paths["non_empty_rasters"], sep=";", decimal=",", index_col=[0, 1])
+
     # Group by part number, and calculate the product of rel_size and rel_std
     df = df.reset_index(inplace=False)
-    df = df.groupby(['part']).prod()
+    df = df.groupby(["part"]).prod()
 
     # Getting the values of x_low, x_high, y_low, y_high from indices of corners. x -> rel_size and y-> rel_std.
-    ul_point = tuple(df.loc[int(df['ul_corner'].idxmax()), ['rel_size', 'rel_std']])
-    ur_point = tuple(df.loc[int(df['ur_corner'].idxmax()), ['rel_size', 'rel_std']])
-    ll_point = tuple(df.loc[int(df['ll_corner'].idxmax()), ['rel_size', 'rel_std']])
-    lr_point = tuple(df.loc[int(df['lr_corner'].idxmax()), ['rel_size', 'rel_std']])
+    ul_point = tuple(df.loc[int(df["ul_corner"].idxmax()), ["rel_size", "rel_std"]])
+    ur_point = tuple(df.loc[int(df["ur_corner"].idxmax()), ["rel_size", "rel_std"]])
+    ll_point = tuple(df.loc[int(df["ll_corner"].idxmax()), ["rel_size", "rel_std"]])
+    lr_point = tuple(df.loc[int(df["lr_corner"].idxmax()), ["rel_size", "rel_std"]])
 
     # In ul_point, x = ul_point[0] and y = ul_point[1]. The same for others.
     return ul_point, ur_point, ll_point, lr_point
@@ -182,4 +181,3 @@ def create_json(filepath, param, param_keys, paths, paths_keys):
     with open(new_file, "w") as json_file:
         json.dump(new_dict, json_file)
     print("files saved: " + new_file)
-

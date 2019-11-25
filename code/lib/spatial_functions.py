@@ -1,5 +1,6 @@
 from lib.util import *
 
+
 def array_to_raster(array, destination_file, input_raster_file):
     """
     This function changes from array back to raster (used after kmeans algorithm).
@@ -7,6 +8,9 @@ def array_to_raster(array, destination_file, input_raster_file):
     :param array: The array which needs to be converted into a raster.
     :param destination_file: The file name with which the created raster file is saved.
     :param input_raster_file: The original input raster file from which the original coordinates are taken to convert the array back to raster.
+    
+    :return: The raster file will be saved in the desired path *destination_file*.
+    :rtype: None
     """
     source_raster = gdal.Open(input_raster_file)
     (upper_left_x, x_size, x_rotation, upper_left_y, y_rotation, y_size) = source_raster.GetGeoTransform()
@@ -17,7 +21,7 @@ def array_to_raster(array, destination_file, input_raster_file):
     x_min = upper_left_x
     y_max = upper_left_y  # x_min & y_max are like the "top left" corner.
     wkt_projection = source_raster.GetProjection()
-    driver = gdal.GetDriverByName('GTiff')
+    driver = gdal.GetDriverByName("GTiff")
 
     # Write to disk
     dataset = driver.Create(destination_file, x_pixels, y_pixels, 1, gdal.GDT_Float32, ["COMPRESS=PACKBITS"])
@@ -25,6 +29,41 @@ def array_to_raster(array, destination_file, input_raster_file):
     dataset.SetProjection(wkt_projection)
     dataset.GetRasterBand(1).WriteArray(array)
     dataset.FlushCache()
+
+
+def array2raster(newRasterfn, rasterOrigin, pixelWidth, pixelHeight, array):
+    """
+    This function saves array to geotiff raster format based on EPSG 4326.
+
+    :param newRasterfn: Output path of the raster.
+    :type newRasterfn: string
+    :param rasterOrigin: Latitude and longitude of the Northwestern corner of the raster.
+    :type rasterOrigin: list of two floats
+    :param pixelWidth:  Pixel width (might be negative).
+    :type pixelWidth: integer
+    :param pixelHeight: Pixel height (might be negative).
+    :type pixelHeight: integer
+    :param array: Array to be converted into a raster.
+    :type array: numpy array
+
+    :return: The raster file will be saved in the desired path *newRasterfn*.
+    :rtype: None
+    """
+    cols = array.shape[1]
+    rows = array.shape[0]
+    originX = rasterOrigin[0]
+    originY = rasterOrigin[1]
+
+    driver = gdal.GetDriverByName("GTiff")
+    outRaster = driver.Create(newRasterfn, cols, rows, 1, gdal.GDT_Float64, ["COMPRESS=PACKBITS"])
+    outRaster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
+    outRasterSRS = osr.SpatialReference()
+    outRasterSRS.ImportFromEPSG(4326)
+    outRaster.SetProjection(outRasterSRS.ExportToWkt())
+    outband = outRaster.GetRasterBand(1)
+    outband.WriteArray(np.flipud(array))
+    outband.FlushCache()
+    outband = None
 
 
 def polygonize_raster(input_file, output_shapefile, column_name):
@@ -35,7 +74,7 @@ def polygonize_raster(input_file, output_shapefile, column_name):
     :param output_shapefile: The shape file which is generated after polygonization.
     :param column_name: The column name, the values from which are used for conversion.
     """
-    
+
     source_raster = gdal.Open(input_file)
     band = source_raster.GetRasterBand(1)
     driver = ogr.GetDriverByName("ESRI Shapefile")
@@ -62,9 +101,7 @@ def create_voronoi_polygons(points_list):
     voronoi_polygons = Voronoi(points_list)
 
     # Make lines from voronoi polygons
-    lines = [LineString(voronoi_polygons.vertices[line])
-             for line in voronoi_polygons.ridge_vertices
-             ]
+    lines = [LineString(voronoi_polygons.vertices[line]) for line in voronoi_polygons.ridge_vertices]
 
     # Return list of polygons created from lines
     polygons_list = list()
@@ -72,8 +109,8 @@ def create_voronoi_polygons(points_list):
         polygons_list.append(polygon)
 
     return polygons_list
-    
-    
+
+
 def calc_geotiff(Crd_all, res_desired):
     """
     This function returns a dictionary containing the georeferencing parameters for geotiff creation,
@@ -94,7 +131,7 @@ def calc_geotiff(Crd_all, res_desired):
         "pixelHeight": -res_desired[0],
     }
     return GeoRef
-    
+
 
 def crd_merra(Crd_regions, res_weather):
     """
@@ -118,7 +155,7 @@ def crd_merra(Crd_regions, res_weather):
     )
     Crd = Crd.T
     return Crd
-    
+
 
 def ind_merra(Crd, Crd_all, res):
     """
@@ -146,7 +183,7 @@ def ind_merra(Crd, Crd_all, res):
     )
     Ind = np.transpose(Ind).astype(int)
     return Ind
-    
+
 
 def calc_region(region, Crd_reg, res_desired, GeoRef):
     """
