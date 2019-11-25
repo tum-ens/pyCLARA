@@ -195,11 +195,11 @@ def max_p_whole_map(paths, param, combined_file):
 
     # Correcting neighbors
     print("Correcting neighbors.")
-    w.neighbors = correct_neighbors_in_shapefile(paths, param, w.neighbors)
+    w.neighbors = correct_neighbors_in_shapefile(paths, param, combined_file, w.neighbors)
     print("Neighbors corrected!")
 
-    thr = 1.5 * (param["maxp"]["final_number"] / len(data)) * data["Value"].sum()
-    print("Threshold = " + str(thr))
+    thr = 0.3 * (param["maxp"]["final_number"] / len(data)) * data["Value"].sum()
+    print("Threshold: " + str(thr))
     random_no = rd.randint(1000, 1500)  # The range is selected randomly.
     np.random.seed(random_no)
 
@@ -207,24 +207,37 @@ def max_p_whole_map(paths, param, combined_file):
     print("Max-p finished!")
     print("Number of clusters: " + str(r.p))
 
-    import pdb
-
-    pdb.set_trace()
     data["CL"] = pd.Series(r.area2region).reindex(data.index)
     data["geometry"] = data.buffer(0)
-    if args.type == "mean":
-        output = data.dissolve(by="CL", aggfunc="mean")
-    elif args.type == "sum":
-        output = data.dissolve(by="CL", aggfunc="sum")
+    
+    # Calculating the area of each cluster using Lambert Cylindrical Equal Area EPSG:9835 (useful for the density, but needs a projection)
+    if param["CRS"] == "epsg:4326":
+        data.to_crs("+proj=cea")
+        data["area"] = data["geometry"].area / 10 ** 6
+        data.to_crs(epsg=4326)
+    else:
+        data["area"] = data["geometry"].area / 10 ** 6
+
+    # Calculate the aggregated values for each cluster based on the aggregation method
+    for counter_files in range(len(paths["inputs"])):
+        raster_name = param["raster_names"].split(" - ")[counter_files][:10]
+        if param["agg"][counter_files] == "density":
+            data[raster_name] = data[raster_name] * data["area"]
+            for cl in data.loc[pd.notnull(data[raster_name]), "CL"].unique():
+                data.loc[data["CL"] == cl, raster_name] = data.loc[data["CL"] == cl, raster_name].sum() / data.loc[data["CL"] == cl, "area"].sum()
+        if param["agg"][counter_files] == "mean":
+            for cl in data.loc[pd.notnull(data[raster_name]), "CL"].unique():
+                data.loc[data["CL"] == cl, raster_name] = data.loc[data["CL"] == cl, raster_name].mean()
+        elif param["agg"][counter_files] == "sum":
+            for cl in data.loc[pd.notnull(data[raster_name]), "CL"].unique():
+                data.loc[data["CL"] == cl, raster_name] = data.loc[data["CL"] == cl, raster_name].sum()
+
+    output = data.dissolve(by="CL")
     output.reset_index(inplace=True)
-    output["NAME_0"] = "CL"
-    aux = [str(output.loc[i, "CL"]).zfill(2) for i in output.index]
-    output["NAME_SHORT"] = output["NAME_0"] + aux
-    output.crs = {"init": "epsg:4326"}
-    output = output.to_crs(epsg=3034)
-    output["Area"] = output.area / 10 ** 6
-    logger.info("Creating final output file: " + folder_names["final_output"] + "final_result.shp")
-    output.to_file(driver="ESRI Shapefile", filename=folder_names["final_output"] + "final_result.shp")  # Final file
+        
+    output["NAME_SHORT"] = ["CL" + str(output.loc[i, "CL"]).zfill(2) for i in output.index]
+    output.crs = {"init": param["CRS"]}
+    output.to_file(driver="ESRI Shapefile", filename=paths["output"])  # Final file
 
     timecheck("End")
 
@@ -274,7 +287,7 @@ def assign_disconnected_components_to_nearest_neighbor(shapefile, w, data):
     return w
 
 
-def correct_neighbors_in_shapefile(paths, param, existing_neighbors):
+def correct_neighbors_in_shapefile(paths, param, combined_file, existing_neighbors):
     """This function finds the neighbors in the shapefile. Somehow, max-p cannot figure out the correct neighbors and
     some clusters are physically neighbors but they are not considered as neighbors. This is where this function comes
     in.
@@ -283,7 +296,7 @@ def correct_neighbors_in_shapefile(paths, param, existing_neighbors):
     :param existing_neighbors = The neighbors matrix that is created by using w and knn. The new neighbors are to be added to this matrix.
     """
 
-    df = gpd.read_file(paths["max_p_combined"])
+    df = gpd.read_file(combined_file)
 
     # Create copy and project it using Lambert Cylindrical Equal Area EPSG:9835, if no projection given
     df_copy = df.copy()
@@ -305,7 +318,10 @@ def correct_neighbors_in_shapefile(paths, param, existing_neighbors):
         intersection = intersection[intersection["area"] > 0.01]  # avoids that neighbors share only a point or a very small area
         neighbors = intersection.CL_1.tolist()
         # Remove own name from the list
-        neighbors.remove(cluster_obj["CL"])
+        try:
+            neighbors.remove(cluster_obj["CL"])
+        except ValueError:
+            pass
         # neighbors = [cl_no for cl_no in neighbors if cluster_number.CL != cl_no]
         # Add names of neighbors as NEIGHBORS value
         df.loc[index, "NEIGHBORS"] = ",".join(str(n) for n in neighbors)
@@ -314,12 +330,10 @@ def correct_neighbors_in_shapefile(paths, param, existing_neighbors):
     neighbors_corrected = dict()
     for index, cluster in df.iterrows():
         neighbors_obj = cluster["NEIGHBORS"].split(",")
-        import pdb; pdb.set_trace()
         neighbors_int = list()
         for neighbor in neighbors_obj:
-            if neighbor>=0:
+            if neighbor:
                 neighbors_int.append(int(neighbor))
-        pdb.set_trace()
         neighbors_corrected[index] = neighbors_int
         for value in existing_neighbors[index]:
             if value not in neighbors_corrected[index]:

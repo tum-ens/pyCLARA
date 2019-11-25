@@ -117,7 +117,7 @@ def cut_raster_using_shapefile(paths, param):
 
             # Opening the raster file as a dataset
             with rasterio.open(input_file) as src:
-                dataset = src.read(1)
+                dataset = np.flipud(src.read(1))
 
             # Calculate masked array
             dataset_masked = dataset * A_subregion_extended

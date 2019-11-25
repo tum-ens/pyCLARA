@@ -81,17 +81,17 @@ def scope_paths_and_parameters(paths, param):
     :rtype: tuple(dict, dict)
     """
     # Name tags for the scope
-    param["region_name"] = "Europe"  # Name tag of the spatial scope
+    param["region_name"] = "Ghana"  # Name tag of the spatial scope
 
     # Input rasters with their aggregation function and weights
     inputs = {
         "Wind_FLH": (
-            root + "03 Intermediate files" + fs + "Files Europe" + fs + "Renewable energy" + fs + "Potential" + fs + "Europe_WindOn_80_FLH_2015.tif",
+            root + "03 Intermediate files" + fs + "Files Ghana" + fs + "Renewable energy" + fs + "Potential" + fs + "Ghana_WindOn_80_FLH_2015.tif",
             "mean",
             1,
         ),
         "Solar_FLH": (
-            root + "03 Intermediate files" + fs + "Files Europe" + fs + "Renewable energy" + fs + "Potential" + fs + "Europe_PV_0_FLH_2015.tif",
+            root + "03 Intermediate files" + fs + "Files Ghana" + fs + "Renewable energy" + fs + "Potential" + fs + "Ghana_PV_0_FLH_2015.tif",
             "mean",
             1,
         ),
@@ -162,7 +162,7 @@ def raster_cutting_parameters(paths, param):
     """
     param["use_shapefile"] = 1
     # If using shapefile, please provide the following parameters/paths
-    paths["subregions"] = root + "02 Shapefiles for regions" + fs + "user-defined" + fs + "Europe_NUTS0_wo_Balkans.shp"
+    paths["subregions"] = root + "02 Shapefiles for regions" + fs + "user-defined" + fs + "gadm36_GHA_1.shp"
     param["subregions_name_col"] = "NAME_SHORT"
     # If not using shapefile, please provide the following parameters
     param["rows"] = 2
@@ -184,7 +184,7 @@ def kmeans_parameters(param):
         "method": "maximum_number",  # Options: "reference_part" or "maximum_number"
         "ratio_size_to_std": 7 / 3,
         "reference_part": {"min": 50, "max": 150, "step": 10},
-        "maximum_number": 1000,
+        "maximum_number": 300,
     }
 
     return param
@@ -200,7 +200,7 @@ def maxp_parameters(param):
     :return param: The updated dictionary param.
     :rtype: dict
     """
-    param["maxp"] = {"maximum_number": 1800 * 1.01, "final_number": 28, "use_results_of_maxp_parts": 1}
+    param["maxp"] = {"maximum_number": 1800 * 1.01, "final_number": 28, "use_results_of_maxp_parts": 0}
 
     return param
 
@@ -278,5 +278,8 @@ def output_paths(paths, param):
 
     # Combined map after max-p 1
     paths["max_p_combined"] = paths["parts_max_p"] + "max_p_combined.shp"
+    
+    # Final result
+    paths["output"] = paths["final_output"] + "final_result.shp"
 
     return paths
