@@ -13,15 +13,16 @@ def max_p_clustering(paths, param):
     # Get number of polygons after k-means
     all_polygons = gpd.read_file(paths["polygonized_clusters"])
 
-    if len(all_polygons) > param["maxp"]["maximum_number"]:
-        import pdb
-
-        pdb.set_trace()
+    if (len(all_polygons) > param["maxp"]["maximum_number"]) and (param["maxp"]["use_results_of_maxp_parts"] == 0):
         # Two rounds of max-p
         param["compression_ratio"] = 0.9 * (param["maxp"]["maximum_number"] / len(all_polygons))
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             max_p_parts(paths, param)
+            max_p_whole_map(paths, param, paths["max_p_combined"])
+    elif param["maxp"]["use_results_of_maxp_parts"]:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
             max_p_whole_map(paths, param, paths["max_p_combined"])
     else:
         with warnings.catch_warnings():

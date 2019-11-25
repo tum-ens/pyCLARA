@@ -63,7 +63,14 @@ def general_settings():
 
 def scope_paths_and_parameters(paths, param):
     """
-    This function ...
+    This function assigns a name for the geographic scope, and collects information regarding the input rasters that will be clustered:
+    
+    * *region_name* is the name of the geographic scope, which affects the paths where the results are saved.
+    * *raster_names* are the name tags of the inputs. Preferably, they should not exceed ten (10) characters, as they will be used as attribute names in the created shapefiles.
+      If the user chooses strings longer than that, they will be cut to ten characters, and no error is thrown. The name tags are entered as keys into the dictionary ``inputs``.
+    * *inputs* are the paths to the input rasters (strings). They are given as the first element of a values tuple for each key in the dictionary ``inputs``.
+    * *agg* are the aggregation methods for the input data (strings: either ``'mean'`` or ``'sum'`` or ``'density'``). They are given as the second element of a values tuple for each key in the dictionary ``inputs``.
+    * *weights* are the weights of the input data during the clustering (int or float). They are given as the third element of a values tuple for each key in the dictionary ``inputs``.
 
     :param paths: Dictionary including the paths.
     :type paths: dict
@@ -90,6 +97,7 @@ def scope_paths_and_parameters(paths, param):
         ),
     }
 
+    # Do not edit the following lines
     param["raster_names"] = " - ".join(list(inputs.keys()))
     paths["inputs"] = [x[0] for x in list(inputs.values())]
     param["agg"] = [x[1] for x in list(inputs.values())]
@@ -100,7 +108,7 @@ def scope_paths_and_parameters(paths, param):
 
 def computation_parameters(param):
     """
-    This function ...
+    This function sets the limit to the number of processes *n_jobs* that can be used in k-means clustering.
 
     :param param: Dictionary including the user preferences.
     :type param: dict
@@ -120,7 +128,10 @@ def computation_parameters(param):
 
 def raster_parameters(param):
     """
-    This function ...
+    This function sets the parameters for the input rasters.
+    
+    * *minimum_valid* is the lowest valid value. Below it, the data is considered NaN.
+    * *CRS* is the coordinates reference system. It must be the same for all input maps.
 
     :param param: Dictionary including the user preferences.
     :type param: dict
@@ -128,7 +139,7 @@ def raster_parameters(param):
     :return param: The updated dictionary param.
     :rtype: dict
     """
-    param["minimum_valid"] = 0  # Lowest valid value. Below it, the data is considered NaN
+    param["minimum_valid"] = 0
     param["CRS"] = "epsg:4326"
 
     return param
@@ -136,7 +147,12 @@ def raster_parameters(param):
 
 def raster_cutting_parameters(paths, param):
     """
-    This function ...
+    This function sets how the large input rasters are cut before starting the clustering. There are two options: the maps are either cut using a shapefile of (multi)polygons,
+    or using rectangular boxes.
+    
+    * *use_shapefile*: if 1, a shapefile is used, otherwise rectangular boxes.
+    * *subregions*: the path to the shapefile of (multi)polygons that will cut the large raster in smaller parts (only needed if *use_shapefile* is 1).
+    * *subregions_name_col* ...
 
     :param param: Dictionary including the user preferences.
     :type param: dict
@@ -168,7 +184,7 @@ def kmeans_parameters(param):
         "method": "maximum_number",  # Options: "reference_part" or "maximum_number"
         "ratio_size_to_std": 7 / 3,
         "reference_part": {"min": 50, "max": 150, "step": 10},
-        "maximum_number": 1800,
+        "maximum_number": 1000,
     }
 
     return param
@@ -184,7 +200,7 @@ def maxp_parameters(param):
     :return param: The updated dictionary param.
     :rtype: dict
     """
-    param["maxp"] = {"maximum_number": 1800 * 1.01, "final_number": 28}
+    param["maxp"] = {"maximum_number": 1800 * 1.01, "final_number": 28, "use_results_of_maxp_parts": 1}
 
     return param
 
