@@ -8,6 +8,9 @@ def array_to_raster(array, destination_file, input_raster_file):
     :param array: The array which needs to be converted into a raster.
     :param destination_file: The file name with which the created raster file is saved.
     :param input_raster_file: The original input raster file from which the original coordinates are taken to convert the array back to raster.
+    
+    :return: The raster file will be saved in the desired path *destination_file*.
+    :rtype: None
     """
     source_raster = gdal.Open(input_raster_file)
     (upper_left_x, x_size, x_rotation, upper_left_y, y_rotation, y_size) = source_raster.GetGeoTransform()
