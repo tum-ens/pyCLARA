@@ -1,0 +1,13 @@
+name: geoclustering
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - pysal=1.14.4
+  - pandas
+  - geopandas
+  - scikit-learn
+  - libpysal
+  - rasterio
+prefix: D:\Miniconda3\envs\geoclustering
+
