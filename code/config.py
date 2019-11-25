@@ -4,6 +4,7 @@ import datetime
 from sys import platform
 import numpy as np
 
+
 def configuration():
     """
     This function is the main configuration function that calls all the other modules in the code.
@@ -44,7 +45,7 @@ def general_settings():
 
     paths = {}
     fs = os.path.sep
-    current_folder = os.path.dirname(os.path.abspath(__file__))  
+    current_folder = os.path.dirname(os.path.abspath(__file__))
     root = str(Path(current_folder).parent.parent.parent)
     # For use at TUM ENS
     if root[-1] != fs:
@@ -54,9 +55,11 @@ def general_settings():
 
     return paths, param
 
+
 ###########################
 #### User preferences #####
 ###########################
+
 
 def scope_paths_and_parameters(paths, param):
     """
@@ -72,12 +75,21 @@ def scope_paths_and_parameters(paths, param):
     """
     # Name tags for the scope
     param["region_name"] = "Europe"  # Name tag of the spatial scope
-    
+
     # Input rasters with their aggregation function and weights
-    inputs = {"Wind_FLH": (root + "03 Intermediate files" + fs + "Files Europe" + fs + "Renewable energy" + fs + "Potential" + fs + "Europe_WindOn_80_FLH_2015.tif", "mean", 1),
-              "Solar_FLH2": (root + "03 Intermediate files" + fs + "Files Europe" + fs + "Renewable energy" + fs + "Potential" + fs + "Europe_PV_0_FLH_2015.tif", "mean", 1),
-              }
-    
+    inputs = {
+        "Wind_FLH": (
+            root + "03 Intermediate files" + fs + "Files Europe" + fs + "Renewable energy" + fs + "Potential" + fs + "Europe_WindOn_80_FLH_2015.tif",
+            "mean",
+            1,
+        ),
+        "Solar_FLH": (
+            root + "03 Intermediate files" + fs + "Files Europe" + fs + "Renewable energy" + fs + "Potential" + fs + "Europe_PV_0_FLH_2015.tif",
+            "mean",
+            1,
+        ),
+    }
+
     param["raster_names"] = " - ".join(list(inputs.keys()))
     paths["inputs"] = [x[0] for x in list(inputs.values())]
     param["agg"] = [x[1] for x in list(inputs.values())]
@@ -96,16 +108,16 @@ def computation_parameters(param):
     :return param: The updated dictionary param.
     :rtype: dict
     """
-    if platform.startswith('win'):
+    if platform.startswith("win"):
         # Windows Root Folder
         param["n_jobs"] = 60
-    elif platform.startswith('linux'):
+    elif platform.startswith("linux"):
         # Linux Root Folder
         param["n_jobs"] = -1
-        
+
     return param
-    
-    
+
+
 def raster_parameters(param):
     """
     This function ...
@@ -116,12 +128,12 @@ def raster_parameters(param):
     :return param: The updated dictionary param.
     :rtype: dict
     """
-    param["minimum_valid"] = 0 # Lowest valid value. Below it, the data is considered NaN
+    param["minimum_valid"] = 0  # Lowest valid value. Below it, the data is considered NaN
     param["CRS"] = "epsg:4326"
-    
+
     return param
 
- 
+
 def raster_cutting_parameters(paths, param):
     """
     This function ...
@@ -140,7 +152,7 @@ def raster_cutting_parameters(paths, param):
     param["rows"] = 2
     param["cols"] = 2
     return paths, param
-    
+
 
 def kmeans_parameters(param):
     """
@@ -152,15 +164,15 @@ def kmeans_parameters(param):
     :return param: The updated dictionary param.
     :rtype: dict
     """
-    param["kmeans"] = {"method": "maximum_number", # Options: "reference_part" or "maximum_number"
-                       "ratio_size_to_std": 7/3,
-                       "reference_part": {"min": 50,
-                                          "max": 150,
-                                          "step": 10},
-                       "maximum_number": 1800}
-    
+    param["kmeans"] = {
+        "method": "maximum_number",  # Options: "reference_part" or "maximum_number"
+        "ratio_size_to_std": 7 / 3,
+        "reference_part": {"min": 50, "max": 150, "step": 10},
+        "maximum_number": 1800,
+    }
+
     return param
- 
+
 
 def maxp_parameters(param):
     """
@@ -172,14 +184,16 @@ def maxp_parameters(param):
     :return param: The updated dictionary param.
     :rtype: dict
     """
-    param["maxp"] = {"maximum_number": 1800 * 1.01,
-                     "final_number": 28}
-    
+    param["maxp"] = {"maximum_number": 1800 * 1.01, "final_number": 28}
+
     return param
+
+
 ###########################
 ##### Define Paths ########
 ###########################
-		
+
+
 def output_folders(paths, param):
     """
     This function defines the paths to multiple output folders:
@@ -238,18 +252,15 @@ def output_paths(paths, param):
     """
     """
 
-
     # Input statistics
     paths["input_stats"] = paths["region"] + "input_stats.csv"
     paths["non_empty_rasters"] = paths["region"] + "non_empty_rasters.csv"
     paths["kmeans_stats"] = paths["region"] + "kmeans_stats.csv"
-    
-    # Polygonized clusters after k-means
-    paths["polygonized_clusters"] = paths["polygons"] + 'combined_result.shp'
-    
-    # Combined map after max-p 1
-    paths["max_p_combined"] = paths['parts_max_p'] + 'max_p_combined.shp'
 
-    
+    # Polygonized clusters after k-means
+    paths["polygonized_clusters"] = paths["polygons"] + "combined_result.shp"
+
+    # Combined map after max-p 1
+    paths["max_p_combined"] = paths["parts_max_p"] + "max_p_combined.shp"
 
     return paths
