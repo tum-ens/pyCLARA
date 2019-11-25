@@ -1,6 +1,6 @@
 from lib.util import *
 
-def max_p_algorithm_new(paths, param):
+def max_p_clustering(paths, param):
     """
     This function applies the max-p algorithm to the obtained polygons.
     
@@ -8,169 +8,27 @@ def max_p_algorithm_new(paths, param):
     :param paths: The paths to the rasters and to the output folders, from config.py
     """
     timecheck("Start")
-
-    # Read all necessary inputs from CSV files for this function
-    df = pd.read_csv(paths["non_empty_rasters"], sep=';', decimal=',', index_col=[0,1])
-    non_empty_rasters = list(set(df.index.levels[1].tolist()))
     
-    # Group by part number, and calculate the product of rel_size and rel_std
-    group_by_part = df.reset_index(inplace=False)
-    group_by_part = group_by_part.groupby(['part']).prod()
-
-    # Start max-p
-    for i in non_empty_rasters:
-        print('Running max-p for part: ' + paths["polygons"] + 'result_%d.shp' % i)
-        data = gpd.read_file(paths["polygons"] + 'result_%d.shp' % i)
-        
-        # Calculate the weighted sum in 'Value', that will be used for clustering
-        data['Value'] = 0
-        for counter_files in range(len(paths["inputs"])):
-            raster_name = param["raster_names"].split(" - ")[counter_files][:10]
-            scaling = data[raster_name].mean()
-            data['Value'] = data['Value'] + param["weights"][counter_files] * data[raster_name] / scaling
-
-        # Create weights object
-        w = ps.weights.Queen.from_shapefile(paths["polygons"] + 'result_%d.shp' % i)
-
-        # This loop is used to force any disconnected group of polygons to be assigned to the nearest neighbors
-        if len(data) > 1:
-            knnw = ps.weights.KNN.from_shapefile(paths["polygons"] + 'result_%d.shp' % i, k=1)
-            # Attach islands if any to nearest neighbor
-            w = libpysal.weights.util.attach_islands(w, knnw)
-
-            [n_components, labels] = cg.connected_components(w.sparse)
-            if n_components > 1:
-                print('Disconnected areas exist. Removing them before max-p can be applied.')
-                for comp in range(n_components):
-                    # Filter polygons within that component
-                    data_comp = data.loc[labels == comp]
-                    
-                    import pdb; pdb.set_trace()
-                    ss = [uu for uu, x in enumerate(labels == comp) if x]
-                    dd = data.loc[ss]
-                    dd['F'] = 1
-                    dd['geometry'] = dd['geometry'].buffer(0)
-                    dd = dd.dissolve(by='F')
-                    dd.index = [len(data)]
-                    dissolve = data.drop(ss)
-                    dissolve = dissolve.append(dd)
-                    knnw = ps.weights.KNN.from_dataframe(dissolve, k=1)
-                    for cc in range(1, len(data) - 1):
-                        countern = 0
-                        knn = ps.weights.KNN.from_dataframe(data, k=cc)
-                        for s in range(len(ss)):
-                            if knn.neighbors[ss[s]][cc - 1] == knnw.neighbors[len(data)][0]:
-                                w.neighbors[ss[s]] = w.neighbors[ss[s]] + knnw.neighbors[len(data)]
-                                w.neighbors[knnw.neighbors[len(data)][0]] = w.neighbors[
-                                                                                knnw.neighbors[len(data)][0]] + [
-                                                                                ss[s]]
-                                countern = countern + 1
-                                continue
-                        if countern > 0:
-                            break
-        #Get coefficients for threshold equation
-        coef = get_coefficients(paths)
-
-        # Calculate threshold depending on the size and standard deviation
-        thr = (coef['A'] * (exp(-coef['B'] * (group_by_part.loc[i, 'rel_size'] + (coef['C'] * group_by_part.loc[i, 'rel_std']))))) * data['Value'].sum() * 0.25
-        if len(data) == 1:
-            thr = data['Value'].sum() - 0.01
-        
-        rd.seed(100)
-        np.random.seed(100)
-        print('Running max-p for part: ' + str(i))
-        r = ps.region.maxp.Maxp(w, data['Value'].values.reshape(-1, 1), floor=thr, floor_variable=data['Value'], initial=100)
-        print('Number of clusters after max-p: ' + str(r.p))
-
-        if r.p == 0:
-            import pdb; pdb.set_trace()
-            print('No initial solution found. Removing disconnected areas again.')
-            gal = libpysal.open('%d.gal' % i, 'w')
-            gal.write(w)
-            gal.close()
-            gal = libpysal.open('%d.gal' % i, 'r')
-            w = gal.read()
-            gal.close()
-            [n_components, labels] = cg.connected_components(w.sparse)
-            print('Disconnected areas exist again')
-            for comp in range(n_components):
-                import pdb; pdb.set_trace()
-                ss = [uu for uu, x in enumerate(labels == comp) if x]
-                dd = data.loc[ss]
-                dd['F'] = 1
-                dd['geometry'] = dd['geometry'].buffer(0)
-                dd = dd.dissolve(by='F')
-                dd.index = [len(data)]
-                dissolve = data.drop(ss)
-                dissolve = dissolve.append(dd)
-                knnw = ps.weights.KNN.from_dataframe(dissolve, k=1)
-                for cc in range(1, len(data) - 1):
-                    countern = 0
-                    knn = ps.weights.KNN.from_dataframe(data, k=cc)
-                    for s in range(len(ss)):
-                        if knn.neighbors[ss[s]][cc - 1] == knnw.neighbors[len(data)][0]:
-                            w.neighbors[str(ss[s])] = w.neighbors[str(ss[s])] + [str(knnw.neighbors[len(data)][0])]
-                            w.neighbors[str(knnw.neighbors[len(data)][0])] = w.neighbors[
-                                                                                 str(knnw.neighbors[len(data)][0])] + [
-                                                                                 str(ss[s])]
-                            countern = countern + 1
-                            continue
-                    if countern > 0:
-                        break
-
-            np.random.seed(random_no)
-            print('Running max-p again.')
-            logger.info('Running max-p again on part: ' + str(i))
-            r = ps.region.maxp.Maxp(w, data['Value'].values.reshape(-1, 1), floor=thr, floor_variable=data['Value'], initial=5000)
-            print('Number of clusters:')
-            print(r.p)
-            logger.info('Number of clusters after max-p: ' + str(r.p))
-        data['CL'] = pd.Series(r.area2region).reindex(data.index)
-        data['geometry'] = data['geometry'].buffer(0)
-        
-        # Calculating the area of each cluster using Lambert Cylindrical Equal Area EPSG:9835 (useful for the density, but needs a projection)
-        if param["CRS"] == "epsg:4326":
-            data.to_crs("+proj=cea")
-            data['area'] = data['geometry'].area / 10**6
-            data.to_crs(epsg=4326)
-        else:
-            data['area'] = data['geometry'].area / 10**6
-        
-        
-        # Calculate the aggregated values for each cluster based on the aggregation method
-        for counter_files in range(len(paths["inputs"])):
-            raster_name = param["raster_names"].split(" - ")[counter_files][:10]
-            if param["agg"][counter_files] == 'density':
-                data[raster_name] = data[raster_name] * data['area']
-                for cl in data.loc[pd.notnull(data[raster_name]), 'CL'].unique():
-                    data.loc[data['CL'] == cl, raster_name] = data.loc[data['CL'] == cl, raster_name].sum() / data.loc[data['CL'] == cl, 'area'].sum()
-            if param["agg"][counter_files] == 'mean':
-                for cl in data.loc[pd.notnull(data[raster_name]), 'CL'].unique():
-                    data.loc[data['CL'] == cl, raster_name] = data.loc[data['CL'] == cl, raster_name].mean()
-            elif param["agg"][counter_files] == 'sum':
-                for cl in data.loc[pd.notnull(data[raster_name]), 'CL'].unique():
-                    data.loc[data['CL'] == cl, raster_name] = data.loc[data['CL'] == cl, raster_name].sum()
-        
-        file = data.dissolve(by='CL')
-        file.reset_index(inplace=True)
-
-        # Result for every part after max-p one
-        file.to_file(driver='ESRI Shapefile', filename=paths['parts_max_p'] + 'max_p_part_%d.shp' % i)
-
-    print('Merging all parts of max-p 1')
-    gdf = gpd.read_file(paths['parts_max_p'] + 'max_p_part_%d.shp' % non_empty_rasters[0])
-    for j in non_empty_rasters[1:]:
-        gdf_aux = gpd.read_file(paths['parts_max_p'] + 'max_p_part_%d.shp' % j)
-        gdf = gpd.GeoDataFrame(pd.concat([gdf, gdf_aux], ignore_index=True))
-
-    gdf['CL'] = gdf.index
-    gdf['geometry'] = gdf.buffer(0)
-    gdf.to_file(driver='ESRI Shapefile', filename=paths['max_p_combined'])
-
+    # Get number of polygons after k-means
+    all_polygons = gpd.read_file(paths["polygonized_clusters"])
+    
+    if len(all_polygons) > param["maxp"]["maximum_number"]:
+        import pdb; pdb.set_trace()
+        # Two rounds of max-p
+        param["compression_ratio"] = 0.9 * (param["maxp"]["maximum_number"] / len(all_polygons))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            max_p_parts(paths, param)
+            max_p_whole_map(paths, param, paths["max_p_combined"])
+    else:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            max_p_whole_map(paths, param, paths["polygonized_clusters"])
+    
     timecheck("End")
 
 
-def max_p_algorithm(paths, param):
+def max_p_parts(paths, param):
     """This function applies the max-p algorithm to the obtained polygons.
     
     :param param: The parameters from config.py
@@ -188,7 +46,7 @@ def max_p_algorithm(paths, param):
 
     # Start max-p
     for i in non_empty_rasters:
-        print('Running max-p for part: ' + paths["polygons"] + 'result_%d.shp' % i)
+        print('Running max-p for part: ' + str(i))
         data = gpd.read_file(paths["polygons"] + 'result_%d.shp' % i)
         
         # Calculate the weighted sum in 'Value', that will be used for clustering
@@ -200,100 +58,64 @@ def max_p_algorithm(paths, param):
 
         # Create weights object
         w = ps.weights.Queen.from_shapefile(paths["polygons"] + 'result_%d.shp' % i)
+        w = assign_disconnected_components_to_nearest_neighbor(paths["polygons"] + 'result_%d.shp' % i, w, data)
 
-        # This loop is used to force any disconnected group of polygons to be assigned to the nearest neighbors
-        if len(data) > 1:
-            knnw = ps.weights.KNN.from_shapefile(paths["polygons"] + 'result_%d.shp' % i, k=1)
-            # Attach islands if any to nearest neighbor
-            w = libpysal.weights.util.attach_islands(w, knnw)
-
-            [n_components, labels] = cg.connected_components(w.sparse)
-            if n_components > 1:
-                print('Disconnected areas exist. Removing them before max-p can be applied.')
-                for comp in range(n_components):
-                    # Filter polygons within that component
-                    data_comp = data.loc[labels == comp]
-                    
-                    import pdb; pdb.set_trace()
-                    ss = [uu for uu, x in enumerate(labels == comp) if x]
-                    dd = data.loc[ss]
-                    dd['F'] = 1
-                    dd['geometry'] = dd['geometry'].buffer(0)
-                    dd = dd.dissolve(by='F')
-                    dd.index = [len(data)]
-                    dissolve = data.drop(ss)
-                    dissolve = dissolve.append(dd)
-                    knnw = ps.weights.KNN.from_dataframe(dissolve, k=1)
-                    for cc in range(1, len(data) - 1):
-                        countern = 0
-                        knn = ps.weights.KNN.from_dataframe(data, k=cc)
-                        for s in range(len(ss)):
-                            if knn.neighbors[ss[s]][cc - 1] == knnw.neighbors[len(data)][0]:
-                                w.neighbors[ss[s]] = w.neighbors[ss[s]] + knnw.neighbors[len(data)]
-                                w.neighbors[knnw.neighbors[len(data)][0]] = w.neighbors[
-                                                                                knnw.neighbors[len(data)][0]] + [
-                                                                                ss[s]]
-                                countern = countern + 1
-                                continue
-                        if countern > 0:
-                            break
-        #Get coefficients for threshold equation
+        # Get coefficients for threshold equation
         coef = get_coefficients(paths)
 
         # Calculate threshold depending on the size and standard deviation
-        thr = (coef['A'] * (exp(-coef['B'] * (group_by_part.loc[i, 'rel_size'] + (coef['C'] * group_by_part.loc[i, 'rel_std']))))) * data['Value'].sum() * 0.25
+        thr = (coef['A'] * (exp(-coef['B'] * (group_by_part.loc[i, 'rel_size'] + (coef['C'] * group_by_part.loc[i, 'rel_std']))))) * data['Value'].sum() * param["compression_ratio"] / 2
         if len(data) == 1:
             thr = data['Value'].sum() - 0.01
         
         rd.seed(100)
         np.random.seed(100)
-        print('Running max-p for part: ' + str(i))
         r = ps.region.maxp.Maxp(w, data['Value'].values.reshape(-1, 1), floor=thr, floor_variable=data['Value'], initial=100)
-        print('Number of clusters after max-p: ' + str(r.p))
+        print('Number of clusters after max-p: ' + str(r.p) + " (before: " + str(len(data)) + ")")
 
         if r.p == 0:
             import pdb; pdb.set_trace()
-            print('No initial solution found. Removing disconnected areas again.')
-            gal = libpysal.open('%d.gal' % i, 'w')
-            gal.write(w)
-            gal.close()
-            gal = libpysal.open('%d.gal' % i, 'r')
-            w = gal.read()
-            gal.close()
-            [n_components, labels] = cg.connected_components(w.sparse)
-            print('Disconnected areas exist again')
-            for comp in range(n_components):
-                import pdb; pdb.set_trace()
-                ss = [uu for uu, x in enumerate(labels == comp) if x]
-                dd = data.loc[ss]
-                dd['F'] = 1
-                dd['geometry'] = dd['geometry'].buffer(0)
-                dd = dd.dissolve(by='F')
-                dd.index = [len(data)]
-                dissolve = data.drop(ss)
-                dissolve = dissolve.append(dd)
-                knnw = ps.weights.KNN.from_dataframe(dissolve, k=1)
-                for cc in range(1, len(data) - 1):
-                    countern = 0
-                    knn = ps.weights.KNN.from_dataframe(data, k=cc)
-                    for s in range(len(ss)):
-                        if knn.neighbors[ss[s]][cc - 1] == knnw.neighbors[len(data)][0]:
-                            w.neighbors[str(ss[s])] = w.neighbors[str(ss[s])] + [str(knnw.neighbors[len(data)][0])]
-                            w.neighbors[str(knnw.neighbors[len(data)][0])] = w.neighbors[
-                                                                                 str(knnw.neighbors[len(data)][0])] + [
-                                                                                 str(ss[s])]
-                            countern = countern + 1
-                            continue
-                    if countern > 0:
-                        break
+            # print('No initial solution found. Removing disconnected areas again.')
+            # gal = libpysal.open('%d.gal' % i, 'w')
+            # gal.write(w)
+            # gal.close()
+            # gal = libpysal.open('%d.gal' % i, 'r')
+            # w = gal.read()
+            # gal.close()
+            # [n_components, labels] = cg.connected_components(w.sparse)
+            # print('Disconnected areas exist again')
+            # for comp in range(n_components):
+                # import pdb; pdb.set_trace()
+                # ss = [uu for uu, x in enumerate(labels == comp) if x]
+                # dd = data.loc[ss]
+                # dd['F'] = 1
+                # dd['geometry'] = dd['geometry'].buffer(0)
+                # dd = dd.dissolve(by='F')
+                # dd.index = [len(data)]
+                # dissolve = data.drop(ss)
+                # dissolve = dissolve.append(dd)
+                # knnw = ps.weights.KNN.from_dataframe(dissolve, k=1)
+                # for cc in range(1, len(data) - 1):
+                    # countern = 0
+                    # knn = ps.weights.KNN.from_dataframe(data, k=cc)
+                    # for s in range(len(ss)):
+                        # if knn.neighbors[ss[s]][cc - 1] == knnw.neighbors[len(data)][0]:
+                            # w.neighbors[str(ss[s])] = w.neighbors[str(ss[s])] + [str(knnw.neighbors[len(data)][0])]
+                            # w.neighbors[str(knnw.neighbors[len(data)][0])] = w.neighbors[
+                                                                                 # str(knnw.neighbors[len(data)][0])] + [
+                                                                                 # str(ss[s])]
+                            # countern = countern + 1
+                            # continue
+                    # if countern > 0:
+                        # break
 
-            np.random.seed(random_no)
-            print('Running max-p again.')
-            logger.info('Running max-p again on part: ' + str(i))
-            r = ps.region.maxp.Maxp(w, data['Value'].values.reshape(-1, 1), floor=thr, floor_variable=data['Value'], initial=5000)
-            print('Number of clusters:')
-            print(r.p)
-            logger.info('Number of clusters after max-p: ' + str(r.p))
+            # np.random.seed(random_no)
+            # print('Running max-p again.')
+            # logger.info('Running max-p again on part: ' + str(i))
+            # r = ps.region.maxp.Maxp(w, data['Value'].values.reshape(-1, 1), floor=thr, floor_variable=data['Value'], initial=5000)
+            # print('Number of clusters:')
+            # print(r.p)
+            # logger.info('Number of clusters after max-p: ' + str(r.p))
         data['CL'] = pd.Series(r.area2region).reindex(data.index)
         data['geometry'] = data['geometry'].buffer(0)
         
@@ -304,7 +126,6 @@ def max_p_algorithm(paths, param):
             data.to_crs(epsg=4326)
         else:
             data['area'] = data['geometry'].area / 10**6
-        
         
         # Calculate the aggregated values for each cluster based on the aggregation method
         for counter_files in range(len(paths["inputs"])):
@@ -339,80 +160,44 @@ def max_p_algorithm(paths, param):
     timecheck("End")
 
 
-def max_p_algorithm_2(paths, param):
-    """This function runs the max-p algorithm again on the results obtained from max_p_algorithm().
-        :param param = The parameters from config.py
-        :param paths = The paths to the rasters and to the output folders, from config.py
+def max_p_whole_map(paths, param, combined_file):
+    """This function runs the max-p algorithm again on the results obtained from max_p_parts.
+    
+    :param param: The parameters from config.py
+    :param paths: The paths to the rasters and to the output folders, from config.py
     """
-    logger.info('Starting "max_p_algorithm_2".')
-    print('------------------------- Max-p Two -------------------------')
-    current_date_time = datetime.datetime.now()
-    format_time = current_date_time.strftime("%Y-%m-%d_%H:%M:%S")
-    print('This part started at: ' + format_time)
-    logger.info('"max_p_algorithm_2" started at: ' + format_time)
+    timecheck("Start")
 
-    logger.info('Opening file: ' + paths["parts_max_p"] + 'max_p_combined.shp')
-    data = gpd.read_file(paths["parts_max_p"] + 'max_p_combined.shp')
+    # Read combined file with regions to be clustered
+    data = gpd.read_file(combined_file)
     
     # Calculate the weighted sum in 'Value', that will be used for clustering
-    counter_files = 'A'
     data['Value'] = 0
-    for input_file in paths["inputs"]:
-        scaling = data['Value_' + counter_files].mean()
-        data['Value'] = data['Value'] + param["weights"][counter_files] * data['Value_' + counter_files] / scaling
-        counter_files = chr(ord(counter_files) + 1)
+    for counter_files in range(len(paths["inputs"])):
+        raster_name = param["raster_names"].split(" - ")[counter_files][:10]
+        scaling = data[raster_name].mean()
+        data['Value'] = data['Value'] + param["weights"][counter_files] * data[raster_name] / scaling
 
-    logger.info('Creating weights object.')
-    w = ps.weights.Queen.from_shapefile(paths["parts_max_p"] + 'max_p_combined.shp')
-    knnw = ps.weights.KNN.from_shapefile(paths["parts_max_p"] + 'max_p_combined.shp', k=1)
-    w = libpysal.weights.util.attach_islands(w, knnw)
-    [n_components, labels] = cg.connected_components(w.sparse)
-    print(labels)
-    aa = w.islands
-    if n_components > 1:
-        logger.info('Disconnected areas exist. Removing them for max-p.')
-        print('Disconnected areas exist')
-        for comp in range(n_components):
-            import pdb; pdb.set_trace()
-            ss = [uu for uu, x in enumerate(labels == comp) if x]
-            dd = data.loc[ss]
-            dd['F'] = 1
-            dd['geometry'] = dd['geometry'].buffer(0)
-            dd = dd.dissolve(by='F')
-            dd.index = [len(data)]
-            Dissolve = data.drop(ss)
-            Dissolve = Dissolve.append(dd)
-            knnw = ps.weights.KNN.from_dataframe(Dissolve, k=1)
-            for cc in range(1, len(data) - 1):
-                countern = 0
-                knn = ps.weights.KNN.from_dataframe(data, k=cc)
-                for s in range(len(ss)):
-                    if knn.neighbors[ss[s]][cc - 1] == knnw.neighbors[len(data)][0]:
-                        w.neighbors[ss[s]] = w.neighbors[ss[s]] + knnw.neighbors[len(data)]
-                        w.neighbors[knnw.neighbors[len(data)][0]] = w.neighbors[knnw.neighbors[len(data)][0]] + [ss[s]]
-                        countern = countern + 1
-                        continue
-                if countern > 0:
-                    break
-    logger.info('Correcting neighbors.')
+    # Create weights object
+    w = ps.weights.Queen.from_shapefile(combined_file)
+    w = assign_disconnected_components_to_nearest_neighbor(combined_file, w, data)
+    
+    # Correcting neighbors
     print('Correcting neighbors.')
-    w.neighbors = find_neighbors_in_shape_file(paths, w.neighbors)
+    w.neighbors = correct_neighbors_in_shapefile(paths, param, w.neighbors)
     print('Neighbors corrected!')
-    logger.info('Neighbors corrected.')
+    
 
-    thr = 0.0275 * data['Value'].sum()
-    logger.debug('Threshold = ' + str(thr))
+    thr = 1.5 * (param["maxp"]["final_number"] / len(data)) * data['Value'].sum()
+    print('Threshold = ' + str(thr))
     random_no = rd.randint(1000, 1500)  # The range is selected randomly.
-    logger.debug('Random number for seed = ' + str(random_no))
     np.random.seed(random_no)
-
-    print('Neighbors Assigned. Running max-p.')
-    logger.info('Running max-p.')
-    r = ps.region.maxp.Maxp(w, data['Value'].values.reshape(-1, 1), floor=thr, floor_variable=data['Value'], initial=5000)
+    
+    r = ps.region.maxp.Maxp(w, data['Value'].values.reshape(-1, 1), floor=thr, floor_variable=data['Value'], initial=100)
     print('Max-p finished!')
     print('Number of clusters: ' + str(r.p))
-    logger.info('Number of clusters: ' + str(r.p))
 
+    import pdb; pdb.set_trace()
     data['CL'] = pd.Series(r.area2region).reindex(data.index)
     data['geometry'] = data.buffer(0)
     if args.type == 'mean':
@@ -429,18 +214,57 @@ def max_p_algorithm_2(paths, param):
     logger.info('Creating final output file: ' + folder_names['final_output'] + 'final_result.shp')
     output.to_file(driver='ESRI Shapefile', filename=folder_names['final_output'] + 'final_result.shp')  # Final file
 
-    current_date_time = datetime.datetime.now()
-    format_time = current_date_time.strftime("%Y-%m-%d_%H:%M:%S")
-    print('------------------------- == -------------------------')
-    print('This part finished at: ' + format_time)
-    print('------------------------- == -------------------------')
-    logger.info('"max_p_algorithm_2" finished at: ' + format_time)
-
-    return True
+    timecheck("End")
 
 
-def find_neighbors_in_shape_file(paths, existing_neighbors):
-    """This function finds the neighbors in the shape file. Somehow, max-p cannot figure out the correct neighbors and
+def assign_disconnected_components_to_nearest_neighbor(shapefile, w, data):
+    """
+    This loop is used to force any disconnected group of polygons to be assigned to the nearest neighbors
+    """
+    
+    if len(data) > 1:
+        knnw = ps.weights.KNN.from_shapefile(shapefile, k=1)
+        
+        [n_components, labels] = cg.connected_components(w.sparse)
+        if n_components > 1:
+            # Attach islands if any to nearest neighbor
+            w = libpysal.weights.util.attach_islands(w, knnw)
+            [n_components, labels] = cg.connected_components(w.sparse)
+
+        if n_components > 1:
+            # Disconnected areas exist. Removing them before max-p can be applied
+            for comp in range(n_components):
+                # Filter polygons within that component
+                data_comp = data.loc[labels == comp]
+                ind_comp = list(data_comp.index)
+                
+                data_comp['geometry'] = data_comp.buffer(0)
+                data_comp["dissolve_field"] = 1
+                data_comp = data_comp.dissolve(by="dissolve_field")
+                data_comp.index = [len(data)]
+                
+                data_new = data.drop(ind_comp)
+                data_new = data_new.append(data_comp, sort=True)
+                
+                knnw = ps.weights.KNN.from_dataframe(data_new, k=1)
+                for radius in range(1, len(data) - 1):
+                    stop_condition = False
+                    knn = ps.weights.KNN.from_dataframe(data, k=radius)
+                    for ind in ind_comp:
+                        if knn.neighbors[ind][radius - 1] == knnw.neighbors[len(data)][0]:
+                            w.neighbors[ind] = w.neighbors[ind] + knnw.neighbors[len(data)]
+                            w.neighbors[knnw.neighbors[len(data)][0]] = w.neighbors[
+                                                                            knnw.neighbors[len(data)][0]] + [
+                                                                            ind]
+                            stop_condition = True
+                            continue
+                    if stop_condition:
+                        break
+                        
+    return w
+                            
+def correct_neighbors_in_shapefile(paths, param, existing_neighbors):
+    """This function finds the neighbors in the shapefile. Somehow, max-p cannot figure out the correct neighbors and
     some clusters are physically neighbors but they are not considered as neighbors. This is where this function comes
     in.
     :param folder_names = The names of all the folders created for output.
@@ -448,29 +272,36 @@ def find_neighbors_in_shape_file(paths, existing_neighbors):
                                 added to this matrix.
     :
     """
-    df = gpd.read_file(paths["parts_max_p"] + 'max_p_combined.shp')
+    df = gpd.read_file(paths["max_p_combined"])
+    
+    # Create copy and project it using Lambert Cylindrical Equal Area EPSG:9835, if no projection given
+    df_copy = df.copy()
+    df_copy.crs = {'init': param["CRS"]}
+    if param["CRS"] == "epsg:4326":
+        df_copy.to_crs("+proj=cea")
+        
+
     df["NEIGHBORS"] = None
-    for index, cluster_number in df.iterrows():
-        # get 'not disjoint' countries
+    for index, cluster in df.iterrows():
         import pdb; pdb.set_trace()
-        neighbors = df[~df.geometry.disjoint(cluster_number.geometry.buffer(0.005))].CL.tolist()
-        df1 = df
-        df1.crs = {'init': 'epsg:4326'}
-        df1 = df1.to_crs({'init': 'epsg:32662'})
-        df2 = cluster_number.to_frame().T
-        df2 = gpd.GeoDataFrame(df2, geometry='geometry')
-        df2.crs = {'init': 'epsg:4326'}
-        df2 = df2.to_crs({'init': 'epsg:32662'})
-        df2.geometry = df2.geometry.buffer(100)  # in m
-        test = gpd.overlay(df1, df2, how='intersection')
-        test['area'] = test['geometry'].area / 10 ** 6  # in km²
-        test = test[test['area'] > 0.01]  # avoids that neighbors share only a point or a very small area
-        neighbors2 = test.CL_1.tolist()
-        neighbors = neighbors2
-        # remove own name from the list
-        neighbors = [cl_no for cl_no in neighbors if cluster_number.CL != cl_no]
-        # add names of neighbors as NEIGHBORS value
-        df.at[index, "NEIGHBORS"] = ','.join(str(n) for n in neighbors)
+        
+
+        cluster_obj = gpd.GeoDataFrame(cluster.to_frame().T, geometry='geometry')
+        cluster_obj.crs = {'init': param["CRS"]}
+        
+        cluster_obj["geometry"] = cluster_obj["geometry"].buffer(3*param["res_desired"][0])  # in map units
+        
+        if param["CRS"] == "epsg:4326":
+            cluster_obj.to_crs("+proj=cea")
+        intersection = gpd.overlay(df_copy, cluster_obj, how='intersection')
+        intersection['area'] = intersection['geometry'].area / 10 ** 6  # in km²
+        intersection = intersection[intersection['area'] > 0.01]  # avoids that neighbors share only a point or a very small area
+        neighbors = intersection.CL_1.tolist()
+        # Remove own name from the list
+        neighbors.remove(cluster_obj["CL"])
+        #neighbors = [cl_no for cl_no in neighbors if cluster_number.CL != cl_no]
+        # Add names of neighbors as NEIGHBORS value
+        df.loc[index, "NEIGHBORS"] = ','.join(str(n) for n in neighbors)
 
     # Making the w.neighbors dictionary for replacing it in max_p_algorithm_2.
     neighbors_corrected = dict()

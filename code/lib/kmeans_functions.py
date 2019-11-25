@@ -10,7 +10,7 @@ def calculate_stats_for_non_empty_rasters(paths, param):
     """
     timecheck("Start")
 
-    non_empty_rasters = pd.DataFrame(columns=['size', 'std', 'rel_size', 'rel_std', 'prod_size_std'],
+    non_empty_rasters = pd.DataFrame(columns=['no_columns', 'no_rows', 'size', 'std', 'rel_size', 'rel_std', 'prod_size_std'],
                                      index=pd.MultiIndex(levels=[[],[]], codes=[[],[]], names=[u'file', u'part']))
 
     # Reading CSV file to get total parts of map
@@ -27,6 +27,10 @@ def calculate_stats_for_non_empty_rasters(paths, param):
             dataset = gdal.Open(file)
             band_raster = dataset.GetRasterBand(1)
             array_raster = band_raster.ReadAsArray()
+            # Get number of columns and rows (needed later)
+            non_empty_rasters.loc[(raster_name, i), ['no_columns', 'no_rows']] = (array_raster.shape[1], array_raster.shape[0])
+            # Replace non-valid values with NaN
+            array_raster[np.isnan(array_raster)] = param["minimum_valid"] - 1
             array_raster[array_raster < param["minimum_valid"]] = np.nan
             if np.sum(~np.isnan(array_raster)) == 0:
                 continue
@@ -57,6 +61,7 @@ def calculate_stats_for_non_empty_rasters(paths, param):
     df.loc['size_max', 'value'] = non_empty_rasters['size'].max()
     df.loc['std_max', 'value'] = non_empty_rasters['std'].max()
     df.to_csv(paths["input_stats"], sep=';', decimal=',')
+    print("\n")
 
     timecheck("End")
 
@@ -124,7 +129,7 @@ def identify_opt_number_of_clusters(paths, param, part, size_of_raster, std_of_r
         optimum_no_of_clusters_for_raster = 1
     if size_of_raster < optimum_no_of_clusters_for_raster:
         optimum_no_of_clusters_for_raster = size_of_raster
-    print('Optimum clusters for part ' + str(part) + ' = ' + str(optimum_no_of_clusters_for_raster))
+    print('Optimum clusters for part ' + str(part) + ' is ' + str(optimum_no_of_clusters_for_raster))
     
     return optimum_no_of_clusters_for_raster
     
@@ -255,7 +260,7 @@ def k_means_clustering(paths, param):
 
     # Applying k-means on all parts
     for i in non_empty_rasters:
-        print('Running k-means on part: ' + str(i))
+        print('Running k-means on part ' + str(i))
         data = pd.DataFrame()
         for counter_files in range(len(paths["inputs"])):
             raster_name = param["raster_names"].split(" - ")[counter_files]
@@ -267,6 +272,7 @@ def k_means_clustering(paths, param):
             (upper_left_x, x_size, x_rotation, upper_left_y, y_rotation, y_size) = dataset.GetGeoTransform()
             band_raster = dataset.GetRasterBand(1)
             array_raster = band_raster.ReadAsArray()
+            array_raster[np.isnan(array_raster)] = param["minimum_valid"] - 1
             array_raster[array_raster < param["minimum_valid"]] = np.nan
             
             (y_index, x_index) = np.nonzero(~np.isnan(array_raster))
@@ -314,11 +320,15 @@ def k_means_clustering(paths, param):
         y_index = (Y - upper_left_y - (y_size / 2)) / y_size
         y_index = list(np.round(y_index).astype(int))
         
+        # Get number of columns and rows
+        no_of_columns_in_map = int(df.loc[(raster_name, i), 'no_columns'])
+        no_of_rows_in_map = int(df.loc[(raster_name, i), 'no_rows'])
+            
         # Get cluster values
         clusters = np.empty([no_of_rows_in_map, no_of_columns_in_map])
         clusters[:] = param["minimum_valid"] - 1
         clusters[y_index, x_index] = CL.labels_
-        print('Converting array back to raster: ' + paths["k_means"] + 'clusters_part_%d.tif' % i)
+        # Convert array back to raster
         array_to_raster(clusters, paths["k_means"] + 'clusters_part_%d.tif' % i, file)
 
         table['CL'] = clusters.flatten().astype(int)
@@ -338,7 +348,7 @@ def k_means_clustering(paths, param):
         # Group by cluster number, then save the table for later
         table = table.groupby(['CL']).mean()
         table.to_csv(paths["k_means"] + 'clusters_part_%d.csv' % i, index=True, sep=';', decimal=',')
-        print('k-means completed for raster part: ' + str(i))
+        print('k-means completed for raster part ' + str(i) + "\n")
     
     timecheck("End")
     

@@ -30,6 +30,8 @@ import inspect
 import math
 import rasterio
 from rasterio import mask, MemoryFile
+import warnings
+from warnings import warn
 
 
 def get_x_y_values(paths):

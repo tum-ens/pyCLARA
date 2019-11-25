@@ -1,4 +1,4 @@
-from lib.spatial_functions import calc_region, array2raster
+from lib.spatial_functions import calc_region, array2raster, crd_merra, ind_merra
 from lib.util import *
 
 def cut_raster(paths, param):
@@ -92,6 +92,10 @@ def cut_raster_using_shapefile(paths, param):
         subregion_name = subregions.loc[reg, param["subregions_name_col"]]
 
         # Compute region_mask
+        r = subregions.bounds.loc[reg]
+        box = np.array([r["maxy"], r["maxx"], r["miny"], r["minx"]])[np.newaxis]
+        Crd_reg = crd_merra(box, res_desired)
+        Ind_reg = ind_merra(Crd_reg, Crd_all, res_desired)
         A_subregion_extended = calc_region(subregions.loc[reg], Crd_all, res_desired, GeoRef)
 
         for counter_files in range(len(paths["inputs"])):
@@ -100,15 +104,16 @@ def cut_raster_using_shapefile(paths, param):
             
             # Opening the raster file as a dataset
             with rasterio.open(input_file) as src:
-                dataset = np.flipud(src.read(1))
+                dataset = src.read(1)
             
             # Calculate masked array
             dataset_masked = dataset * A_subregion_extended
             dataset_masked[A_subregion_extended==0] = param["minimum_valid"] - 1
+            dataset_masked = dataset_masked[Ind_reg[0,2]:Ind_reg[0,0], Ind_reg[0,3]:Ind_reg[0,1]]
             
             # Write masked array
             output_path = paths['sub_rasters'] + raster_name + '_sub_part_%d.tif' % (reg+1)
-            array2raster(output_path, GeoRef["RasterOrigin"], GeoRef["pixelWidth"], GeoRef["pixelHeight"], dataset_masked)
+            array2raster(output_path, [Crd_reg[0,3], Crd_reg[0,0]], GeoRef["pixelWidth"], GeoRef["pixelHeight"], dataset_masked)
             print('Created part: ' + raster_name + '_sub_part_' + str(reg+1))
 
     # Writing the data related to map parts to input_stats.csv file for further use.

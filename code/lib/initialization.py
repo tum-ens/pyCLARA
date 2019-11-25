@@ -42,10 +42,11 @@ def initialization():
         param["GeoRef"] = calc_geotiff(Crd_all, param["res_desired"])
             
     # Create dataframe for input stats
-    df = pd.DataFrame(index=['map_parts_total', 'output_raster_columns', 'output_raster_rows', # from cut_raster_file_to_smaller_boxes
+    df = pd.DataFrame(index=['map_parts_total', 'output_raster_columns', 'output_raster_rows',
                              'ref_part_name', 'size_max', 'std_max',
                              'max_no_of_cl_ref', 'max_no_of_cl_total'],
                       columns=['value'])
+    df.loc[['output_raster_columns', 'output_raster_rows'], "value"] = (dataset.RasterXSize, dataset.RasterYSize)
     if not os.path.exists(paths["input_stats"]):
         df.to_csv(paths["input_stats"], sep=';', decimal=',')
     timecheck("End")
