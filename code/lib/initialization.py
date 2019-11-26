@@ -5,7 +5,11 @@ from lib.util import *
 
 def initialization():
     """
-    This function reads the user-defined parameters and paths from :mod:`config.py`, then ...
+    This function reads the user-defined parameters and paths from :mod:`config.py`, then checks the validity of the input files. If they are missing or are not rasters,
+    a warning is thrown and the code is exited. The same applies if the rasters do not have the same resolution or scope.
+    
+    If the input files are valid, the CSV file in *input_stats* is generated and filled with the information that is already available. It will be called by other functions
+    and eventually filled by them.
 
     :return: The updated dictionaries param and paths.
     :rtype: tuple(dict, dict)

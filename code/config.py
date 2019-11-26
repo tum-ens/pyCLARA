@@ -22,7 +22,7 @@ def configuration():
     param = maxp_parameters(param)
 
     paths = output_folders(paths, param)
-    paths = output_paths(paths, param)
+    paths = output_paths(paths)
 
     return paths, param
 
@@ -152,27 +152,48 @@ def raster_cutting_parameters(paths, param):
     
     * *use_shapefile*: if 1, a shapefile is used, otherwise rectangular boxes.
     * *subregions*: the path to the shapefile of (multi)polygons that will cut the large raster in smaller parts (only needed if *use_shapefile* is 1).
-    * *subregions_name_col* ...
+    * *rows*: number of rows of boxes that the raster will be cut into (only needed if *use_shapefile* is 0).
+    * *cols*: number of columns of boxes that the raster will be cut into (only needed if *use_shapefile* is 0).
 
+    :param paths: Dictionary including the paths.
+    :type paths: dict
     :param param: Dictionary including the user preferences.
     :type param: dict
 
-    :return param: The updated dictionary param.
-    :rtype: dict
+    :return (paths, param): The updated dictionaries paths and param.
+    :rtype: tuple(dict, dict)
     """
     param["use_shapefile"] = 1
+    
     # If using shapefile, please provide the following parameters/paths
     paths["subregions"] = root + "02 Shapefiles for regions" + fs + "user-defined" + fs + "gadm36_GHA_1.shp"
-    param["subregions_name_col"] = "NAME_SHORT"
+
     # If not using shapefile, please provide the following parameters
     param["rows"] = 2
     param["cols"] = 2
+    
     return paths, param
 
 
 def kmeans_parameters(param):
     """
-    This function ...
+    This function sets the parameters for the k-means clustering:
+    
+    * *method*: Currently, two methods for setting the number of clusters are used. By choosing ``'maximum_number'``, the user sets the total number of clusters for all parts.
+      This number will be distributed over the parts depending on their size and the standard deviation of their data. If the user chooses ``'reference_part'``, then the part
+      with the highest product of relative size and standard deviation (relatively to the maximum) is chosen as a reference part. For this one, the maximum number of clusters
+      is identified using the Elbow method. The optimum number of clusters for all the other parts is a function of that number, and of their relative size and standard deviation.
+      
+    .. Warning:: The ``'maximum_number'`` might be exceeded due to the rounding of the share of each part.
+    
+    * *ratio_size_to_std*: This parameter decides about the weight of the relative size and the relative standard deviation (relatively to the maximum) in determining the optimal
+      number of clusters for each part. A ratio of 7:3 means that 70% of the weight is on the relative size of the part, and 30% is on its standard deviation. Any number greater
+      than zero is accepted.
+      
+    * *reference_part*: This is a dictionary that contains the parameters for the Elbow method. Cluster sizes between *min* and *max* with a certain *step* will be tested in about
+      for-loop, before the optimal number of clusters for the reference part can be identified. The dictionary is only needed it the method is ``'reference_part'``.
+      
+    * *maximum_number*: This integer sets the maximum number of kmeans clusters for the whole map. It is only used if the method is ``'maximum_number'``.
 
     :param param: Dictionary including the user preferences.
     :type param: dict
@@ -192,7 +213,15 @@ def kmeans_parameters(param):
 
 def maxp_parameters(param):
     """
-    This function ...
+    This function sets the parameters for max-p clustering. Currently, one or two iterations of the max-p algorithm can be used, depending on the number of polygons after
+    kmeans.
+    
+    * *maximum_number*: This number (positive float or integer) defines the maximum number of clusters that the max-p algorithm can cluster in one go. For about 1800 polygons,
+      the calculation takes about 8 hours. The problem has a complexity of O(n³) in the Bachmann-Landau notation.
+    * *final_number*: This integer defines the number of clusters that the user wishes to obtain at the end. There is no way to force the algorithm to deliver exactly that number
+      of regions. However, the threshold can be defined as a function of *final_number*, so that the result will be close to it.
+    * *use_results_of_maxp_parts*: This parameter should be set to zero, unless the user has already obtained results for the first run of the max-p algorithm, and want to skip
+      it and just run the second round. In that case, the user should set the value at 1.
 
     :param param: Dictionary including the user preferences.
     :type param: dict
@@ -214,8 +243,12 @@ def output_folders(paths, param):
     """
     This function defines the paths to multiple output folders:
     
-      * *region* is the main output folder.
-      * ...
+      * *region* is the main output folder. It contains the name of the scope, and the names of the layers used for clustering (as a subfloder).
+      * *sub_rasters* is a subfolder containing the parts of the input rasters after cutting them.
+      * *k_means* is a subfolder containing the results of the kmeans clustering (rasters).
+      * *polygons* is a subfolder containing the polygonized kmeans clusters.
+      * *parts_max_p* is a subfolder containing the results of the first round of max-p (if there is a second round).
+      * *final_output* is a subfolder containing the final shapefile.
       
     All the folders are created at the beginning of the calculation, if they do not already exist,
     
@@ -264,8 +297,23 @@ def output_folders(paths, param):
     return paths
 
 
-def output_paths(paths, param):
+def output_paths(paths):
     """
+    This function defines the paths of some of the files that will be saved:
+    
+      * *input_stats* is the path to a CSV file with general information such as the number of parts, the maximal size and the maximal standard deviation in the parts, and the maximum number
+        of clusters as set by the user / by the Elbow method.
+      * *non_empty_rasters* is the path to a CSV file with information on each subraster (relative size, standard deviation, etc.).
+      * *kmeans_stats* is the path to a CSV file that is only created if the Elbow method is used (i.e. if using a reference part). It contains statistics for kmeans while applying the Elbow method.
+      * *polygonized_clusters* is the path to the shapefile with the polygonized rasters for the whole scope.
+      * *max_p_combined* is the path to the shapefile that is generated after a first round of the max-p algorithm (if there is a second).
+      * *output* is the path to the shapefile that is generated at the end, i.e. after running max_p_whole_map in :mod:`lib.max_p_functions.py`.
+    
+    :param paths: Dictionary including the paths.
+    :type paths: dict
+
+    :return paths: The updated dictionary paths.
+    :rtype: dict
     """
 
     # Input statistics
@@ -279,9 +327,6 @@ def output_paths(paths, param):
     # Combined map after max-p 1
     paths["max_p_combined"] = paths["parts_max_p"] + "max_p_combined.shp"
     
-    # Final result
-    paths["output"] = paths["final_output"] + "final_result.shp"
-
     # Final result
     paths["output"] = paths["final_output"] + "final_result.shp"
 

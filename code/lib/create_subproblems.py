@@ -4,10 +4,16 @@ from lib.util import *
 
 def cut_raster(paths, param):
     """
-
-    :param paths:
-    :param param:
-    :return:
+    This function decides, based on the user preference in *use_shapefile*, whether to call the
+    module :mod:`cut_raster_using_shapefile` or :mod:`cut_raster_using_boxes`.
+    
+    :param paths: Dictionary of paths to inputs and outputs.
+    :type paths: dict
+    :param param: Dictionary of parameters and user preferences.
+    :type param: dict
+    
+    :return: The submodules :mod:`cut_raster_using_shapefile` and :mod:`cut_raster_using_boxes` have their own outputs.
+    :rtype: None
     """
     if param["use_shapefile"]:
         cut_raster_using_shapefile(paths, param)
@@ -17,10 +23,16 @@ def cut_raster(paths, param):
 
 def cut_raster_using_boxes(paths, param):
     """
-    This function converts the raster file into a m*n boxes with m rows and n columns.
+    This function cuts the raster file into a m*n boxes with m rows and n columns.
     
-    :param param: The parameters from config.py
-    :param paths: The paths to the rasters and to the output folders, from config.py
+    :param paths: The paths to the input rasters *inputs*, to the output raster parts *sub_rasters*, 
+      and to the CSV file *input_stats* which will be updated.
+    :type paths: dict
+    :param param: Parameters that include the number of *rows* and *cols*, and the *raster_names*.
+    :type param: dict
+    
+    :return: The raster parts are saved as GEOTIFF files, and the CSV file *input_stats* is updated.
+    :rtype: None
     """
 
     timecheck("Start")
@@ -84,10 +96,18 @@ def cut_raster_using_boxes(paths, param):
 
 def cut_raster_using_shapefile(paths, param):
     """
-    This function converts the raster file into ...
+    This function cuts the raster file into parts using the features of a shapefile of (multi)polygons.
+    Each feature is used as a mask, so that only the pixels lying on it are extracted and saved in a separate raster file.
     
-    :param param: The parameters from config.py
-    :param paths: The paths to the rasters and to the output folders, from config.py
+    :param paths: The paths to the input rasters *inputs*, to the shapefile of *subregions*, to the output raster parts *sub_rasters*, 
+      and to the CSV file *input_stats* which will be updated.
+    :type paths: dict
+    :param param: Parameters that include the array *Crd_all*, the array *res_desired* and the dictionary 
+      *GeoRef* for georeferencing the output rasters, the minimum valid value *minimum_valid*, and the *raster_names*.
+    :type param: dict
+    
+    :return: The raster parts are saved as GEOTIFF files, and the CSV file *input_stats* is updated.
+    :rtype: None
     """
 
     timecheck("Start")
@@ -101,8 +121,6 @@ def cut_raster_using_shapefile(paths, param):
     subregions.reset_index(inplace=True, drop=True)
 
     for reg in range(len(subregions)):
-        # Get name of region
-        subregion_name = subregions.loc[reg, param["subregions_name_col"]]
 
         # Compute region_mask
         r = subregions.bounds.loc[reg]
