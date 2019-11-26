@@ -1,0 +1,29 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "contributors": [
+    {
+      "login": "kais-siala",
+      "name": "kais-siala",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/21306297?v=4",
+      "profile": "https://github.com/kais-siala",
+      "contributions": [
+        "code",
+        "doc",
+        "example",
+        "ideas",
+        "maintenance",
+        "review",
+        "talk"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "projectName": "geoclustering",
+  "projectOwner": "tum-ens",
+  "repoType": "github",
+  "repoHost": "https://github.com"
+}
