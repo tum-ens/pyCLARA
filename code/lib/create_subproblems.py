@@ -101,8 +101,6 @@ def cut_raster_using_shapefile(paths, param):
     subregions.reset_index(inplace=True, drop=True)
 
     for reg in range(len(subregions)):
-        # Get name of region
-        subregion_name = subregions.loc[reg, param["subregions_name_col"]]
 
         # Compute region_mask
         r = subregions.bounds.loc[reg]

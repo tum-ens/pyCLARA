@@ -4,10 +4,19 @@ from lib.util import *
 
 def calculate_stats_for_non_empty_rasters(paths, param):
     """
-    This function ...
+    This function calculate statistics for all non empty subrasters. These statistics include the number of rows and columns, the size (number of valid points), the standard
+    deviation, the relative size (to the maximum) and the relative standard deviation, the product of the latter two, and the values of four mapping functions using the
+    relative size and relative standard deviation.
     
-    :param param: The parameters from config.py
-    :param paths: The paths to the rasters and to the output folders, from config.py
+    The product of the relative size and relative standard deviation is used to identify the reference part. As of the four mapping functions, they are used to identify the four
+    parts that lie in the corners of the cloud of points, where each point represents a part and is plotted on a graph with the relative size in one axis, and relative standard
+    deviation on the other.
+    
+    :param paths: Dictionary containing the paths to the folder of *inputs*, to the CSV *input_stats*, to the folder of *sub_rasters*, and to the output CSV *non_empty_rasters*.
+    :param param: Dictionary of parameters containing the *raster_names* and the minimum valid value in the rasters, *minimum_valid*.
+    
+    :return: The results are directly saved in the desired CSV file *non_empty_rasters*, and the CSV file *input_stats* is also updated.
+    :rtype: None
     """
     timecheck("Start")
 
@@ -74,7 +83,7 @@ def calculate_stats_for_non_empty_rasters(paths, param):
 
 def choose_ref_part(paths, param):
     """
-    This function chooses the reference part for the function identify_number_of_optimum_clusters.
+    This function chooses the reference part for the function :mod:`identify_max_number_of_clusters_in_ref_part`.
     The reference part is chosen based on the product of relative size and relative standard deviation.
     The part with the largest product in all the input files is chosen.
     
