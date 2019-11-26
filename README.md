@@ -2,7 +2,7 @@
 [![Documentation Status](https://readthedocs.org/projects/geoclustering/badge/?version=latest)](http://geoclustering.readthedocs.io/en/latest/?badge=latest)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![All Contributors](https://img.shields.io/badge/all_contributors-3-orange.svg?style=flat-square)](#contributors)
+[![All Contributors](https://img.shields.io/badge/all_contributors-4-orange.svg?style=flat-square)](#contributors)
 
 This is a python script to cluster high-resolution spatial data (rasters or polylines connecting Voronoi polygons) into contiguous, homogeneous regions.
 
@@ -35,6 +35,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/kais-siala"><img src="https://avatars2.githubusercontent.com/u/21306297?v=4" width="100px;" alt="kais-siala"/><br /><sub><b>kais-siala</b></sub></a><br /><a href="https://github.com/tum-ens/geoclustering/commits?author=kais-siala" title="Code">💻</a> <a href="https://github.com/tum-ens/geoclustering/commits?author=kais-siala" title="Documentation">📖</a> <a href="#example-kais-siala" title="Examples">💡</a> <a href="#ideas-kais-siala" title="Ideas, Planning, & Feedback">🤔</a> <a href="#maintenance-kais-siala" title="Maintenance">🚧</a> <a href="#review-kais-siala" title="Reviewed Pull Requests">👀</a> <a href="#talk-kais-siala" title="Talks">📢</a></td>
     <td align="center"><a href="https://github.com/HoussameH"><img src="https://avatars2.githubusercontent.com/u/48953960?v=4" width="100px;" alt="HoussameH"/><br /><sub><b>HoussameH</b></sub></a><br /><a href="https://github.com/tum-ens/geoclustering/commits?author=HoussameH" title="Code">💻</a> <a href="https://github.com/tum-ens/geoclustering/commits?author=HoussameH" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/waleedskhan"><img src="https://avatars0.githubusercontent.com/u/48930932?v=4" width="100px;" alt="Waleed Sattar Khan"/><br /><sub><b>Waleed Sattar Khan</b></sub></a><br /><a href="https://github.com/tum-ens/geoclustering/commits?author=waleedskhan" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/MYMahfouz"><img src="https://avatars3.githubusercontent.com/u/33868271?v=4" width="100px;" alt="MYMahfouz"/><br /><sub><b>MYMahfouz</b></sub></a><br /><a href="https://github.com/tum-ens/geoclustering/commits?author=MYMahfouz" title="Code">💻</a></td>
   </tr>
 </table>
 
