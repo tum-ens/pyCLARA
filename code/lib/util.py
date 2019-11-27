@@ -37,14 +37,16 @@ import json
 
 def get_x_y_values(paths):
     """
-    This function finds the rel_size and rel_std(coordinates) of the 4 corners of the x,y scatter plot between rel_size
-    and rel_std.
+    This function finds the rel_size and rel_std of the four corners of the x,y scatter plot between rel_size and rel_std.
 
-    :param paths: = The names of all the folders created for output.
+    :param paths: Dictionary of paths including the path to the CSV file *non_empty_rasters*.
+    :type paths: dict
+    
     :return: Coordinates of the upper left, upper right, lower left and lower right points of the x,y scatter plot between rel_size and rel_std.
+    :rtype: tuple(tuples(int, int))
     """
 
-    # 'Reading CSV file non_empty_rasters
+    # Reading CSV file non_empty_rasters
     df = pd.read_csv(paths["non_empty_rasters"], sep=";", decimal=",", index_col=[0, 1])
 
     # Group by part number, and calculate the product of rel_size and rel_std

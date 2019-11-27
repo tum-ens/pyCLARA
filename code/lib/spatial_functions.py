@@ -6,8 +6,11 @@ def array_to_raster(array, destination_file, input_raster_file):
     This function changes from array back to raster (used after kmeans algorithm).
     
     :param array: The array which needs to be converted into a raster.
-    :param destination_file: The file name with which the created raster file is saved.
+    :type array: numpy array
+    :param destination_file: The file name where the created raster file is saved.
+    :type destination_file: string
     :param input_raster_file: The original input raster file from which the original coordinates are taken to convert the array back to raster.
+    :type input_raster_file: string
     
     :return: The raster file will be saved in the desired path *destination_file*.
     :rtype: None
@@ -35,9 +38,15 @@ def polygonize_raster(input_file, output_shapefile, column_name):
     """
     This function is used to change from a raster to polygons as max-p algorithm only works with polygons.
     
-    :param input_file: The file which needs to be converted to a polygon from a raster.
-    :param output_shapefile: The shape file which is generated after polygonization.
+    :param input_file: The path to the file which needs to be converted to a polygon from a raster.
+    :type input_file: string
+    :param output_shapefile: The path to the shapefile which is generated after polygonization.
+    :type output_shapefile: string
     :param column_name: The column name, the values from which are used for conversion.
+    :type column_name: string
+    
+    :return: The shapefile of (multi)polygons is saved directly in the desired path *output_shapefile*.
+    :rtype: None
     """
 
     source_raster = gdal.Open(input_file)
@@ -59,7 +68,10 @@ def polygonize_raster(input_file, output_shapefile, column_name):
 def create_voronoi_polygons(points_list):
     """
     This function makes voronoi polygons by taking a points list as input.
+    (to be completed)
+    
     :param points_list: The points list is used to make voronoi polygons.
+    
     :return:
     """
 
@@ -98,33 +110,33 @@ def calc_geotiff(Crd_all, res_desired):
     return GeoRef
 
 
-def crd_merra(Crd_regions, res_weather):
+def crd_bounding_box(Crd_regions, resolution):
     """
-    This function calculates coordinates of the bounding box covering MERRA-2 data.
+    This function calculates coordinates of the bounding box covering data in a given resolution.
 
     :param Crd_regions: Coordinates of the bounding boxes of the regions.
     :type Crd_regions: numpy array
-    :param res_weather: Weather data resolution.
-    :type res_weather: list
+    :param resolution: Data resolution.
+    :type resolution: numpy array
 
-    :return Crd: Coordinates of the bounding box covering MERRA-2 data for each region.
+    :return Crd: Coordinates of the bounding box covering the data for each region.
     :rtype: numpy array
     """
     Crd = np.array(
         [
-            np.ceil((Crd_regions[:, 0] + res_weather[0] / 2) / res_weather[0]) * res_weather[0] - res_weather[0] / 2,
-            np.ceil(Crd_regions[:, 1] / res_weather[1]) * res_weather[1],
-            np.floor((Crd_regions[:, 2] + res_weather[0] / 2) / res_weather[0]) * res_weather[0] - res_weather[0] / 2,
-            np.floor(Crd_regions[:, 3] / res_weather[1]) * res_weather[1],
+            np.ceil((Crd_regions[:, 0] + resolution[0] / 2) / resolution[0]) * resolution[0] - resolution[0] / 2,
+            np.ceil(Crd_regions[:, 1] / resolution[1]) * resolution[1],
+            np.floor((Crd_regions[:, 2] + resolution[0] / 2) / resolution[0]) * resolution[0] - resolution[0] / 2,
+            np.floor(Crd_regions[:, 3] / resolution[1]) * resolution[1],
         ]
     )
     Crd = Crd.T
     return Crd
 
 
-def ind_merra(Crd, Crd_all, res):
+def ind_from_crd(Crd, Crd_all, res):
     """
-    This function converts longitude and latitude coordinates into indices within the spatial scope of MERRA-2 data.
+    This function converts longitude and latitude coordinates into indices within the spatial scope of the data.
 
     :param Crd: Coordinates to be converted into indices.
     :type Crd: numpy array
@@ -133,7 +145,7 @@ def ind_merra(Crd, Crd_all, res):
     :param res: Resolution of the data, for which the indices are produced.
     :type res: list
     
-    :return Ind: Indices within the spatial scope of MERRA-2 data.
+    :return Ind: Indices within the spatial scope of data.
     :rtype: numpy array
     """
     if len(Crd.shape) == 1:

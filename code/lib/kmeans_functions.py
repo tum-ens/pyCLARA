@@ -4,7 +4,7 @@ from lib.util import *
 
 def calculate_stats_for_non_empty_rasters(paths, param):
     """
-    This function calculate statistics for all non empty subrasters. These statistics include the number of rows and columns, the size (number of valid points), the standard
+    This function calculates statistics for all non empty subrasters. These statistics include the number of rows and columns, the size (number of valid points), the standard
     deviation, the relative size (to the maximum) and the relative standard deviation, the product of the latter two, and the values of four mapping functions using the
     relative size and relative standard deviation.
     
@@ -13,7 +13,9 @@ def calculate_stats_for_non_empty_rasters(paths, param):
     deviation on the other.
     
     :param paths: Dictionary containing the paths to the folder of *inputs*, to the CSV *input_stats*, to the folder of *sub_rasters*, and to the output CSV *non_empty_rasters*.
+    :type paths: dict
     :param param: Dictionary of parameters containing the *raster_names* and the minimum valid value in the rasters, *minimum_valid*.
+    :type param: dict
     
     :return: The results are directly saved in the desired CSV file *non_empty_rasters*, and the CSV file *input_stats* is also updated.
     :rtype: None
@@ -108,12 +110,19 @@ def choose_ref_part(paths, param):
 
 def identify_opt_number_of_clusters(paths, param, part, size_of_raster, std_of_raster):
     """
-    This function identifies number of optimum clusters which will be chosen for k-means
-    Further explanation:
-    Standard deviation and size of this reference part are used to estimate the no of clusters of every other part.
+    This function identifies the optimal number of clusters which will be chosen for k-means in each part.
     
-    :param param: The parameters from config.py
-    :param paths: The paths to the rasters and to the output folders, from config.py
+    In case you are using a reference part, then the optimal number is a function of the number of clusters in the reference part,
+    and of the relative size and relative standard deviation, which are weighted according to *ratio_size_to_std*.
+    
+    In case you are using the maximum number for the whole map, then the optimal number in each part is a function of the total number,
+    of the relative size and relative standard deviation, and the weights in *ratio_size_to_std*.
+    
+    :param paths: Dictionary of paths pointing to the location of the input CSV file *non_empty_rasters*.
+    :type paths: dict
+    :param param: Dictionary of parameters including the ratio between the relative size and the relative standard deviation *ratio_size_to_std*
+      and the *method* for setting the number of clusters.
+    
     """
     # This function is used to determine the optimum number of clusters for respective part
 
@@ -154,12 +163,19 @@ def identify_opt_number_of_clusters(paths, param, part, size_of_raster, std_of_r
 
 def identify_max_number_of_clusters_in_ref_part(paths, param):
     """
-    This function identifies number of optimum clusters which will be chosen for k-means
-    Further explanation:
-    Standard deviation and size of this reference part are used to estimate the no of clusters of every other part.
+    This function identifies the maximum number of clusters for the reference part using the Elbow method.
+    The number of clusters is varied between *min* and *max* by *step*, and in each case, the inertia (distances to the cluster centers)
+    are calculated. If the slope of the change of the inertia goes below a certain threshold, the function is interrupted and the maximum number
+    of clusters for the reference part is determined.
     
-    :param param: The parameters from config.py
-    :param paths: The paths to the rasters and to the output folders, from config.py
+    :param paths: Dictionary containing the paths to the folder of *inputs*, to the CSV *input_stats*, to the folder of *sub_rasters*, and to the output CSV *kmeans_stats*.
+    :type paths: dict
+    :param param: Dictionary of parameters containing the *raster_names* and their *weights*, the minimum valid value in the rasters, *minimum_valid*, kmeans-related parameters
+      for the iteration of the Elbow method, and the number of precesses *n_job*.
+    :type param: dict
+    
+    :return: The results are directly saved in the desired CSV file *kmeans_stats*, and the CSV file *input_stats* is also updated.
+    :rtype: None
     """
     timecheck("Start")
 

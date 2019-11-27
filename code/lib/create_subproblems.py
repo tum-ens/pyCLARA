@@ -1,4 +1,4 @@
-from lib.spatial_functions import calc_region, array_to_raster, crd_merra, ind_merra
+from lib.spatial_functions import calc_region, array_to_raster, crd_bounding_box, ind_from_crd
 from lib.util import *
 
 
@@ -125,8 +125,8 @@ def cut_raster_using_shapefile(paths, param):
         # Compute region_mask
         r = subregions.bounds.loc[reg]
         box = np.array([r["maxy"], r["maxx"], r["miny"], r["minx"]])[np.newaxis]
-        Crd_reg = crd_merra(box, res_desired)
-        Ind_reg = ind_merra(Crd_reg, Crd_all, res_desired)
+        Crd_reg = crd_bounding_box(box, res_desired)
+        Ind_reg = ind_from_crd(Crd_reg, Crd_all, res_desired)
         A_subregion_extended = calc_region(subregions.loc[reg], Crd_all, res_desired, GeoRef)
 
         for counter_files in range(len(paths["inputs"])):
