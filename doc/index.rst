@@ -2,12 +2,12 @@
 geoclustering
 =============
 
----------------------------------------------------------------------------------
-Tool to cluster high-resolution spatial data into contiguous, homogeneous regions
----------------------------------------------------------------------------------
+---------------------------------------------------
+Clustering module for high-resolution spatial data
+---------------------------------------------------
 
-:Code developers: Kais Siala, Mohammad Youssed Mahfouz, Waleed Sattar Khan
-:Documentation authors:	Kais Siala		
+:Code developers: Kais Siala, Mohammad Youssed Mahfouz, Waleed Sattar Khan, Houssame Houmy
+:Documentation authors:	Kais Siala, Waleed Sattar Khan, Houssame Houmy	
 :Maintainers: Kais Siala <kais.siala@tum.de>
 :Organization: `Chair of Renewable and Sustainable Energy Systems <http://www.ens.ei.tum.de/en/homepage/>`_, Technical University of Munich
 :Version: |version|
@@ -20,7 +20,7 @@ Features
 --------
 * Clustering of one or multiple high-resolution rasters, such as wind resource maps or load density maps
 * Supported aggregation functions: average, sum, or density
-* Combination of k-means and max-p algorithms, to ensure contiguity
+* Combination of k-means and max-p algorithms, to ensure contiguity of the output regions
 * Clustering of grid data using a hierarchical algorithm
 * Flexibility in the number of polygons obtained
 
@@ -49,7 +49,7 @@ Contents
 User manual
 ^^^^^^^^^^^^^
 
-These documents give a general overview and help you getting started from the installation to you first running model.
+These documents give a general overview and help you get started from the installation to your first running model.
 
 .. toctree::
    :maxdepth: 3
@@ -59,8 +59,7 @@ These documents give a general overview and help you getting started from the in
 Theory documentation
 ^^^^^^^^^^^^^^^^^^^^
 
-Continue here if you want to understand the theoretical conception of the model,
-the logic behind the equations, and the structure of the features.
+Continue here if you want to understand the concept of the model and learn more about clustering algorithms.
 
 .. toctree::
    :maxdepth: 2
@@ -81,7 +80,7 @@ Dependencies
 ------------
 A list of the used libraries is available in the environment file:
 
-.. literalinclude:: ../env/geo_clust.yml
+.. literalinclude:: ../env/geoclustering.yml
 
 Bibliography	
 ------------

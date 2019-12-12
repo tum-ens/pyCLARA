@@ -1,4 +1,103 @@
-def cluster_trans_file(trans_file_path, voronoi_file_path, no_of_clusters=28):
+from lib.spatial_functions import ckd_nearest
+from lib.util import *
+
+def connect_islands(paths, param):
+    """
+    This script takes a shapefile of a transmission network and uses graph theory to identify its components (electric islands).
+    After the identification of islands, it creates connections between them using additional transmission lines with low capacities.
+    This correction assumes that there are actually no electric islands, and that multiple graph components only exist because some
+    transmission lines are missing in the data. The output is a shapefile of transmission lines with no electric islands.
+
+    :param paths: Dictionary of paths including the path to the input shapefile of the transmission network, *grid_input*.
+    :type paths: dict
+
+    :return: The shapefile with connections between islands is saved directly in the desired path.
+    :rtype: None
+    """
+    timecheck("Start")
+    
+    # Reading transmission file as geoDataFrame
+    gdf_trans = gpd.read_file(paths["grid_input"])
+
+    # Reading the shapefile as a networkx graph
+    graph = nx.read_shp(paths["grid_input"])
+
+    # Converting graph to undirected graph
+    graph = graph.to_undirected()
+
+    # Getting islands in the graph as sub-graphs
+    islands_graph = [graph.subgraph(c) for c in nx.connected_components(graph)]
+    print("Number of electric islands: " + str(len(islands_graph)))
+
+    # Making each graph island a GeoDataFrame
+    gdfs_dict = dict()
+    print("Converting graphs to GeoDataFrames of points.")
+    for index, island in enumerate(islands_graph):
+        nodes = list(island.nodes())
+        points = list()
+        for node in nodes:
+            points.append(Point(node[0], node[1]))
+        df = pd.DataFrame(points, columns=["geometry"])
+        gdfs_dict[index] = gpd.GeoDataFrame(df, geometry="geometry", crs={"init": param["CRS_grid"]})
+
+    # This while loop will execute until only 1 island remains.
+    print("Finding closest point to other islands for all islands and connecting them.")
+    while len(gdfs_dict) != 1:
+        key_1 = 0
+        val_1 = gdfs_dict[key_1]
+        results = pd.DataFrame(columns=["gdf", "index", "distance", "point"])
+        for key_2, val_2 in gdfs_dict.items():
+            # if-else block makes sure that the same gdf is not compared when calculating distances to nearest nodes.
+            if key_1 == key_2:
+                continue
+            else:
+                df = ckd_nearest(val_1, val_2, "geometry")
+
+                # Get the index of the point that has the minimum distance
+                idx = df[["distance"]].idxmin().values[0]
+
+                # Get the distance and the point that is nearest
+                dist = df.loc[idx].values[0]
+                pt = df.loc[idx].values[1]
+                row = [key_2, idx, dist, pt]
+
+                # Add row to the dataframe
+                results.loc[len(results)] = row
+
+        # Find the gdf whose point has the closest distance to gdf[key1]
+        # Get the index of the gdf results for which there is minimum distance
+        idx_min = results[["distance"]].idxmin().values[0]
+
+        # Get the row from results according to idx_min
+        rq_row = results.loc[idx_min]
+
+        # Get the point for gdf_1 with the help of 'index' column in rq_row
+        point_1 = gdfs_dict[key_1].loc[rq_row["index"]].values[0]
+
+        # gdf_1 is key_1. Getting gdf_2 from rq_row with the help of 'gdf' column
+        gdf_2 = rq_row["gdf"]
+
+        # Getting point_2 from rq_row with 'point' column in rq_row
+        point_2 = rq_row["point"]
+
+        # Make a LINESTRING between point_1 and point_2 in gdf_trans
+        id_use = gdf_trans["ID"].max() + 1
+        insert_row = [id_use, param["default_cap_MVA"], param["default_line_type"], LineString([point_1, point_2])]
+        gdf_trans.loc[len(gdf_trans)] = insert_row
+
+        # Append gdf_2 to gdf_1 and delete gdf_2
+        gdfs_dict[key_1] = gdfs_dict[key_1].append(gdfs_dict[gdf_2], ignore_index=True)
+        del gdfs_dict[gdf_2]
+        print("Number of electric islands: " + str(len(gdfs_dict)))
+
+    # Write the connected GeoDataFrame(gdf_trans) to a new shapefile
+    print('Writing connected shapefile: paths["grid_connected"].')
+    gdf_trans.crs = {"init": param["CRS_grid"]}
+    gdf_trans.to_file(driver="ESRI Shapefile", filename=paths["grid_connected"])
+    
+    timecheck("End")
+
+def cluster_trans_file(paths, param):
     """
     This function clusters the transmission network into a specified number of clusters.
     :param trans_file_path: The transmission network shapefile path.
@@ -6,9 +105,24 @@ def cluster_trans_file(trans_file_path, voronoi_file_path, no_of_clusters=28):
     :param no_of_clusters: The number of clusters that the map will be cut into.
     :return:
     """
-    print("Reading the transmission file as a geoDataFrame.")
-    logger.info('Reading the transmission file "' + str(trans_file_path) + '" as a geoDataFrame.')
-    gdf_trans = gpd.read_file(trans_file_path)
+    timecheck("Start")
+    
+    # Read the transmission file and the geographic scope as GeoDataFrames
+    gdf_trans = gpd.read_file(paths["grid_connected"])
+    gdf_trans.crs = {"init": param["CRS_grid"]}
+    scope = gpd.read_file(paths["spatial_scope"])
+    scope.to_crs(param["CRS_grid"])
+    
+    # Convert scope into one single polygon
+    poly = pd.DataFrame(columns=["NAME_SHORT", "geometry"])
+    poly.loc[0] = ("Scope", scope.geometry.unary_union)
+    scope = gpd.GeoDataFrame(poly, geometry="geometry")
+    scope.crs = {"init": param["CRS_grid"]}
+    
+    # Clip using shapefile of geographic scope
+    grid_clipped = gpd.sjoin(gdf_trans, scope, op="intersects")
+    
+    import pdb; pdb.set_trace()
 
     # Adding two new columns to gdf_trans.
     gdf_trans["point_1"] = 0
@@ -16,17 +130,13 @@ def cluster_trans_file(trans_file_path, voronoi_file_path, no_of_clusters=28):
     gdf_trans["point_1"] = gdf_trans["point_1"].astype(object)
     gdf_trans["point_2"] = gdf_trans["point_2"].astype(object)
 
-    # Getting points from all the lines which will be used to form voronoi polygons.
-    logger.info("Adding the points of each transmission line to point columns in the geoDataFrame of transmission " "lines.")
+    # Get points from all the lines which will be used to form voronoi polygons
     print("Adding the points of each transmission line to point columns in the geoDataFrame of transmission lines.")
     count = 0
-
     for index, row in gdf_trans.iterrows():
         # print(row['geometry'])
         try:
-            coord = row["geometry"].coords
-            point_1 = coord[0]
-            point_2 = coord[1]
+            point_1, point_2 = row["geometry"].coords
             gdf_trans.at[index, "point_1"] = Point(point_1[0], point_1[1])
             gdf_trans.at[index, "point_2"] = Point(point_2[0], point_2[1])
         except NotImplementedError:
@@ -494,9 +604,35 @@ def create_voronoi_polygons(points_list):
     for polygon in polygonize(lines):
         polygons_list.append(polygon)
 
-    # pdb.set_trace()
-
     return polygons_list
+
+
+def clean_clipped_trans_file(clipped_file, original_file):
+    """
+    This function cleans the clipped transmission file by replacing the MULTILINESTRING instances with LINESTRING
+    instances. MULTILINESTRING instances are formed as a result of clipping.
+
+    :param clipped_file:  Gridkit transmission file clipped with Europe map.
+    :param original_file: Original Gridkit file.
+
+    :return:
+    """
+    # Reading the transmission file.
+    gdf_trans = gpd.read_file(clipped_file)
+
+    # Reading the gridkit_cleaned file. This is done in order to replace the MULTILINESTRING geometries that are formed
+    # as a result of clipping.
+    gdf_clean_trans = gpd.read_file(original_file)
+
+    # Replacing all lines in clipped transmission lines file with lines from clean transmission file so that
+    # clipped transmission lines(now MULTILINESTRINGs) get converted to LINESTRING objects.
+    for index, row in gdf_trans.iterrows():
+        id_feature = row["ID"]
+        one_feature_clean_trans = gdf_clean_trans[gdf_clean_trans["ID"] == id_feature]
+        gdf_trans.at[index, "geometry"] = one_feature_clean_trans["geometry"].iloc[0]
+
+    gdf_trans.to_file(driver="ESRI Shapefile", filename="trans_clean.shp")
+
 
 
 if __name__ == "__main__":

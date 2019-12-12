@@ -6,8 +6,11 @@ def array_to_raster(array, destination_file, input_raster_file):
     This function changes from array back to raster (used after kmeans algorithm).
     
     :param array: The array which needs to be converted into a raster.
-    :param destination_file: The file name with which the created raster file is saved.
+    :type array: numpy array
+    :param destination_file: The file name where the created raster file is saved.
+    :type destination_file: string
     :param input_raster_file: The original input raster file from which the original coordinates are taken to convert the array back to raster.
+    :type input_raster_file: string
     
     :return: The raster file will be saved in the desired path *destination_file*.
     :rtype: None
@@ -31,48 +34,19 @@ def array_to_raster(array, destination_file, input_raster_file):
     dataset.FlushCache()
 
 
-def array2raster(newRasterfn, rasterOrigin, pixelWidth, pixelHeight, array):
-    """
-    This function saves array to geotiff raster format based on EPSG 4326.
-
-    :param newRasterfn: Output path of the raster.
-    :type newRasterfn: string
-    :param rasterOrigin: Latitude and longitude of the Northwestern corner of the raster.
-    :type rasterOrigin: list of two floats
-    :param pixelWidth:  Pixel width (might be negative).
-    :type pixelWidth: integer
-    :param pixelHeight: Pixel height (might be negative).
-    :type pixelHeight: integer
-    :param array: Array to be converted into a raster.
-    :type array: numpy array
-
-    :return: The raster file will be saved in the desired path *newRasterfn*.
-    :rtype: None
-    """
-    cols = array.shape[1]
-    rows = array.shape[0]
-    originX = rasterOrigin[0]
-    originY = rasterOrigin[1]
-
-    driver = gdal.GetDriverByName("GTiff")
-    outRaster = driver.Create(newRasterfn, cols, rows, 1, gdal.GDT_Float64, ["COMPRESS=PACKBITS"])
-    outRaster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
-    outRasterSRS = osr.SpatialReference()
-    outRasterSRS.ImportFromEPSG(4326)
-    outRaster.SetProjection(outRasterSRS.ExportToWkt())
-    outband = outRaster.GetRasterBand(1)
-    outband.WriteArray(np.flipud(array))
-    outband.FlushCache()
-    outband = None
-
-
 def polygonize_raster(input_file, output_shapefile, column_name):
     """
     This function is used to change from a raster to polygons as max-p algorithm only works with polygons.
     
-    :param input_file: The file which needs to be converted to a polygon from a raster.
-    :param output_shapefile: The shape file which is generated after polygonization.
+    :param input_file: The path to the file which needs to be converted to a polygon from a raster.
+    :type input_file: string
+    :param output_shapefile: The path to the shapefile which is generated after polygonization.
+    :type output_shapefile: string
     :param column_name: The column name, the values from which are used for conversion.
+    :type column_name: string
+    
+    :return: The shapefile of (multi)polygons is saved directly in the desired path *output_shapefile*.
+    :rtype: None
     """
 
     source_raster = gdal.Open(input_file)
@@ -94,7 +68,10 @@ def polygonize_raster(input_file, output_shapefile, column_name):
 def create_voronoi_polygons(points_list):
     """
     This function makes voronoi polygons by taking a points list as input.
+    (to be completed)
+    
     :param points_list: The points list is used to make voronoi polygons.
+    
     :return:
     """
 
@@ -133,33 +110,33 @@ def calc_geotiff(Crd_all, res_desired):
     return GeoRef
 
 
-def crd_merra(Crd_regions, res_weather):
+def crd_bounding_box(Crd_regions, resolution):
     """
-    This function calculates coordinates of the bounding box covering MERRA-2 data.
+    This function calculates coordinates of the bounding box covering data in a given resolution.
 
     :param Crd_regions: Coordinates of the bounding boxes of the regions.
     :type Crd_regions: numpy array
-    :param res_weather: Weather data resolution.
-    :type res_weather: list
+    :param resolution: Data resolution.
+    :type resolution: numpy array
 
-    :return Crd: Coordinates of the bounding box covering MERRA-2 data for each region.
+    :return Crd: Coordinates of the bounding box covering the data for each region.
     :rtype: numpy array
     """
     Crd = np.array(
         [
-            np.ceil((Crd_regions[:, 0] + res_weather[0] / 2) / res_weather[0]) * res_weather[0] - res_weather[0] / 2,
-            np.ceil(Crd_regions[:, 1] / res_weather[1]) * res_weather[1],
-            np.floor((Crd_regions[:, 2] + res_weather[0] / 2) / res_weather[0]) * res_weather[0] - res_weather[0] / 2,
-            np.floor(Crd_regions[:, 3] / res_weather[1]) * res_weather[1],
+            np.ceil((Crd_regions[:, 0] + resolution[0] / 2) / resolution[0]) * resolution[0] - resolution[0] / 2,
+            np.ceil(Crd_regions[:, 1] / resolution[1]) * resolution[1],
+            np.floor((Crd_regions[:, 2] + resolution[0] / 2) / resolution[0]) * resolution[0] - resolution[0] / 2,
+            np.floor(Crd_regions[:, 3] / resolution[1]) * resolution[1],
         ]
     )
     Crd = Crd.T
     return Crd
 
 
-def ind_merra(Crd, Crd_all, res):
+def ind_from_crd(Crd, Crd_all, res):
     """
-    This function converts longitude and latitude coordinates into indices within the spatial scope of MERRA-2 data.
+    This function converts longitude and latitude coordinates into indices within the spatial scope of the data.
 
     :param Crd: Coordinates to be converted into indices.
     :type Crd: numpy array
@@ -168,7 +145,7 @@ def ind_merra(Crd, Crd_all, res):
     :param res: Resolution of the data, for which the indices are produced.
     :type res: list
     
-    :return Ind: Indices within the spatial scope of MERRA-2 data.
+    :return Ind: Indices within the spatial scope of data.
     :rtype: numpy array
     """
     if len(Crd.shape) == 1:
@@ -232,3 +209,26 @@ def calc_region(region, Crd_reg, res_desired, GeoRef):
         A_region = out_image[0]
 
     return A_region
+
+
+def ckd_nearest(gdf_a, gdf_b, bcol):
+    """
+    This function finds the distance and the nearest points in gdf_b for every point in gdf_a.
+
+    :param gdf_a: GeoDataFrame of points, forming a component that is disconnected from *gdf_b*.
+    :type gdf_a: geodataframe
+    :param gdf_b: GeoDataFrame of points, forming a component that is disconnected from *gdf_a*.
+    :type gdf_b: geodataframe
+    :param bcol: Name of column that should be listed in the resulting DataFrame.
+    :type bcol: string
+
+    :return df: Dataframe with the combinations of pair of points as rows, and ``'distance'`` and ``'bcol'`` as columns.
+    :rtype: pandas dataframe
+    """
+    na = np.array(list(zip(gdf_a.geometry.x, gdf_a.geometry.y)))
+    nb = np.array(list(zip(gdf_b.geometry.x, gdf_b.geometry.y)))
+    btree = cKDTree(nb)
+    dist, idx = btree.query(na, k=1)
+    df = pd.DataFrame.from_dict({"distance": dist.astype(float), "bcol": gdf_b.loc[idx, bcol].values})
+
+    return df

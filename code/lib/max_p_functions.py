@@ -3,10 +3,18 @@ from lib.util import *
 
 def max_p_clustering(paths, param):
     """
-    This function applies the max-p algorithm to the obtained polygons.
+    This function applies the max-p algorithm to the obtained polygons. Depending on the number of clusters in the whole map after k-means,
+    it decides whether to run max-p clustering multiple times (for each part, then for the whole map) or once (for the whole map).
+    If you have already results for each part, you can skip that by setting *use_results_of_max_parts* to 1.
     
-    :param param: The parameters from config.py
-    :param paths: The paths to the rasters and to the output folders, from config.py
+    :param paths: Dictionary of paths pointing to *polygonized_clusters* and *max_p_combined*.
+    :type paths: dict
+    :param param: Dictionary of parameters including max-p related parameters (*maximum_number* and *use_results_of_maxp_parts*), and eventually the *compression_ratio*
+      for the first round of max-p clustering.
+    :type param: dict
+    
+    :return: The called functions :mod:`max_p_parts` and :mod:`max_p_whole_map` generate outputs.
+    :rtype: None
     """
     timecheck("Start")
 
@@ -33,10 +41,26 @@ def max_p_clustering(paths, param):
 
 
 def max_p_parts(paths, param):
-    """This function applies the max-p algorithm to the obtained polygons.
+    """
+    This function applies the max-p algorithm on each part. It identifies the neighbors from the shapefile of polygons for that part. If there are disconnected
+    parts, it assumes that they are neighbors with the closest polygon.
     
-    :param param: The parameters from config.py
-    :param paths: The paths to the rasters and to the output folders, from config.py
+    The max-p algorithm aggregates polygons to a maximum number of regions that fulfil a certain condition. That condition is formulated as a minimum share
+    of the sum of data values, ``thr``. The threshold is set differently for each part, so that the largest and most diverse part keeps a large number of polygons,
+    and the smallest and least diverse is aggregated into one region. This is determined by the function :mod:`get_coefficients`.
+    
+    After assigning the clusters to the polygons, they are dissolved according to them, and the values of each property are aggregated according to the aggregation
+    functions of the inputs, saved in *agg*.
+    
+    :param paths: Dictionary containing the paths to the folder of *inputs* and *polygons*, to the CSV *non_empty_rasters*, to the output folder *parts_max_p* and to the
+      output file *max_p_combined*.
+    :type paths: dict
+    :param param: Dictionary of parameters containing the *raster_names* and their *weights* and aggregation methods *agg*, the *compression_ratio* of the polygonized
+      kmeans clusters, and the *CRS* to be used for the shapefiles.
+    :type param: dict
+    
+    :return: The results of the clustering are shapefiles for each part, saved in the folder *parts_max_p*, and a combination of these for the whole map *max_p_combined*.
+    :rtype: None
     """
     timecheck("Start")
 
@@ -133,10 +157,29 @@ def max_p_parts(paths, param):
 
 
 def max_p_whole_map(paths, param, combined_file):
-    """This function runs the max-p algorithm again on the results obtained from max_p_parts.
+    """
+    This function runs the max-p algorithm for the whole map, either on the results obtained from :mod:`max_p_parts`, or on those obtained from :mod:`polygonize_after_k_means`,
+    depending on the number of polygons after kmeans clustering.
     
-    :param param: The parameters from config.py
-    :param paths: The paths to the rasters and to the output folders, from config.py
+    It identifies the neighbors from the shapefile of polygons. If there are disconnected components (an island of polygons), it assumes that they are neighbors
+    with the closest polygon. It also verifies that the code identifies neighbors properly and corrects that eventually using :mod:`correct_neighbors_in_shapefile`.
+    
+    The max-p algorithm aggregates polygons to a maximum number of regions that fulfil a certain condition. That condition is formulated as a minimum share
+    of the sum of data values, ``thr``. The threshold for the whole map is set as a function of the number of polygons before clustering, and the desired number of polygons
+    at the end. However, that number may not be matched exactly. The user may wish to adjust the threshold manually until the desired number is reached (increase the threshold
+    to reduce the number of regions, and vice versa).
+    
+    After assigning the clusters to the polygons, they are dissolved according to them, and the values of each property are aggregated according to the aggregation
+    functions of the inputs, saved in *agg*.
+    
+    :param paths: Dictionary containing the paths to the folder of *inputs* and to the output file *output*.
+    :type paths: dict
+    :param param: Dictionary of parameters containing the *raster_names* and their *weights* and aggregation methods *agg*, the desired number of features at the end
+      *final_number*, and the *CRS* to be used for the shapefiles.
+    :type param: dict
+    
+    :return: The result of the clustering is one shapefile for the whole map saved directly in *output*.
+    :rtype: None
     """
     timecheck("Start")
 
@@ -156,7 +199,7 @@ def max_p_whole_map(paths, param, combined_file):
 
     # Correcting neighbors
     print("Correcting neighbors.")
-    w.neighbors = correct_neighbors_in_shapefile(paths, param, combined_file, w.neighbors)
+    w.neighbors = correct_neighbors_in_shapefile(param, combined_file, w.neighbors)
     print("Neighbors corrected!")
 
     thr = 0.3 * (param["maxp"]["final_number"] / len(data)) * data["Value"].sum()
@@ -205,7 +248,17 @@ def max_p_whole_map(paths, param, combined_file):
 
 def assign_disconnected_components_to_nearest_neighbor(shapefile, w, data):
     """
-    This loop is used to force any disconnected group of polygons to be assigned to the nearest neighbors
+    This loop is used to force any disconnected group of polygons (graph component) to be assigned to the nearest neighbors.
+    
+    :param shapefile: The path to the shapefile that may contain disconnected components (islands of polygons).
+    :type shapefile: string
+    :param w: The pysal weights object of the graph (``w.neighbors`` is similar to an adjacency matrix).
+    :type w: pysal weights object
+    :param data: The geodataframe of polygons to be clustered.
+    :type data: geodataframe
+    
+    :return w: The updated pysal weights objected is returned.
+    :rtype: pysal weights object
     """
 
     if len(data) > 1:
@@ -248,13 +301,24 @@ def assign_disconnected_components_to_nearest_neighbor(shapefile, w, data):
     return w
 
 
-def correct_neighbors_in_shapefile(paths, param, combined_file, existing_neighbors):
-    """This function finds the neighbors in the shapefile. Somehow, max-p cannot figure out the correct neighbors and
+def correct_neighbors_in_shapefile(param, combined_file, existing_neighbors):
+    """
+    This function finds the neighbors in the shapefile. Somehow, max-p cannot figure out the correct neighbors and
     some clusters are physically neighbors but they are not considered as neighbors. This is where this function comes
-    in.
+    in. 
+    
+    It creates a small buffer around each polygon. If the enlarged polygons intersect, and the area of the intersection exceeds a threshold, then
+    the polygons are considered neighbors, and the dictionary of neighbors is updated.
 
-    :param folder_names = The names of all the folders created for output.
-    :param existing_neighbors = The neighbors matrix that is created by using w and knn. The new neighbors are to be added to this matrix.
+    :param param: The dictionary of parameters including the coordinate reference system *CRS* and the resolution of input rasters *res_desired*.
+    :type param: dict
+    :param combined_file: The path to the shapefile of polygons to be clustered.
+    :type combined_file: str
+    :param existing_neighbors: The dictionary of neighbors as extracted from the shapefile, before any eventual correction.
+    :type existing_neighbors: dict
+    
+    :return neighbors_corrected: The dictionary of neighbors after correction (equivalent to an adjacency matrix).
+    :rtype: dict
     """
 
     df = gpd.read_file(combined_file)
@@ -307,11 +371,13 @@ def correct_neighbors_in_shapefile(paths, param, combined_file, existing_neighbo
 def get_coefficients(paths):
     """
     This function gets the coefficients A, B and C for solving the 3 equations which will lead to the calculation
-    of threshold in max-p algorithm.
+    of the threshold in the max-p algorithm.
 
-    :param paths: The names of all the folders created for output.
+    :param paths: The dictionary of paths including the one to *non_empty_rasters*.
+    :type paths: str
 
-    :return coef: The coefficient values for A, B and C returned as a dictionary. EXPECTED STRUCTURE: {'a': 0.556901762222155, 'b': 2.9138975880272286, 'c': 0.6164969722472001}
+    :return coef: The coefficient values for A, B and C returned as a dictionary. The expected structure is similar to this dictionary: {'A': 0.55, 'B': 2.91, 'C': 0.61}.
+    :rtype: dict
     """
     # Get coefficients for threshold equation
     ul_point, ur_point, ll_point, lr_point = get_x_y_values(paths)
@@ -329,12 +395,17 @@ def eq_solver(coef, ll_point, ul_point, ur_point):
     This function serves as the solver to find coefficient values A, B and C for our defined function which is used to
     calculate the threshold.
 
-    :param coef: The coefficients which are calculated
+    :param coef: The coefficients which are calculated.
+    :type coef: dict
     :param ll_point: Coordinates of lower left point.
+    :type ll_point: tuple(int, int)
     :param ul_point: Coordinates of upper left point.
+    :type ul_point: tuple(int, int)
     :param ur_point: Coordinates of upper right point.
+    :type ur_point: tuple(int, int)
 
     :return f: Coefficient values for A, B and C in a numpy array. A is f[0], B is f[1] and C is f[2].
+    :rtype: numpy array
     """
     A = coef[0]
     B = coef[1]
