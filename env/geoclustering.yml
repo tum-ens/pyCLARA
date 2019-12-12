@@ -9,5 +9,6 @@ dependencies:
   - scikit-learn
   - libpysal
   - rasterio
+  - networkx
 prefix: D:\Miniconda3\envs\geoclustering
 

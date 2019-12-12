@@ -20,6 +20,7 @@ def configuration():
     paths, param = raster_cutting_parameters(paths, param)
     param = kmeans_parameters(param)
     param = maxp_parameters(param)
+    param = transmission_parameters(param)
 
     paths = output_folders(paths, param)
     paths = output_paths(paths)
@@ -41,17 +42,17 @@ def general_settings():
 
     param = {}
     param["author"] = "Kais Siala"  # the name of the person running the script
-    param["comment"] = "Workshop_example"
+    param["comment"] = "Testing lines"
 
     paths = {}
     fs = os.path.sep
     current_folder = os.path.dirname(os.path.abspath(__file__))
-    root = str(Path(current_folder).parent)
+    root = str(Path(current_folder).parent.parent.parent)
     # For use at TUM ENS
     if root[-1] != fs:
-        root = root + fs + "Database_example" + fs
+        root = root + fs + "Database_KS" + fs
     else:
-        root = root + "Database_example" + fs
+        root = root + "Database_KS" + fs
 
     return paths, param
 
@@ -66,6 +67,8 @@ def scope_paths_and_parameters(paths, param):
     This function assigns a name for the geographic scope, and collects information regarding the input rasters that will be clustered:
     
     * *region_name* is the name of the geographic scope, which affects the paths where the results are saved.
+    * *spatial_scope* is the path to the geographic scope that will be used to clip the map of transmission lines.
+      You can ignore it if you are only clustering rasters.
     * *raster_names* are the name tags of the inputs. Preferably, they should not exceed ten (10) characters, as they will be used as attribute names in the created shapefiles.
       If the user chooses strings longer than that, they will be cut to ten characters, and no error is thrown. The name tags are entered as keys into the dictionary ``inputs``.
     * *inputs* are the paths to the input rasters (strings). They are given as the first element of a values tuple for each key in the dictionary ``inputs``.
@@ -81,21 +84,28 @@ def scope_paths_and_parameters(paths, param):
     :rtype: tuple(dict, dict)
     """
     # Name tags for the scope
-    param["region_name"] = "Ghana"  # Name tag of the spatial scope
+    param["region_name"] = "Europe"  # Name tag of the spatial scope
+    
+    # Path to the shapefile of the scope (useful for lines clustering)
+    PathTemp = root + "02 Shapefiles for regions" + fs + "User-defined" + fs
+    paths["spatial_scope"] = PathTemp + "Europe_NUTS0_wo_Balkans.shp"
 
     # Input rasters with their aggregation function and weights
     inputs = {
         "Wind_FLH": (
-            root + "03 Intermediate files" + fs + "Files Ghana" + fs + "Renewable energy" + fs + "Potential" + fs + "Ghana_WindOn_80_FLH_2015.tif",
+            root + "03 Intermediate files" + fs + "Files Europe" + fs + "Renewable energy" + fs + "Potential" + fs + "Europe_WindOn_80_FLH_2015.tif",
             "mean",
             1,
         ),
         "Solar_FLH": (
-            root + "03 Intermediate files" + fs + "Files Ghana" + fs + "Renewable energy" + fs + "Potential" + fs + "Ghana_PV_0_FLH_2015.tif",
+            root + "03 Intermediate files" + fs + "Files Europe" + fs + "Renewable energy" + fs + "Potential" + fs + "Europe_PV_0_FLH_2015.tif",
             "mean",
             1,
         ),
     }
+    
+    # Input shapefile for transmission lines clustering
+    paths["grid_input"] = root + "03 Intermediate files" + fs + "Files Europe" + fs + "Grid" + fs + "grid_cleaned.shp"
 
     # Do not edit the following lines
     param["raster_names"] = " - ".join(list(inputs.keys()))
@@ -131,7 +141,7 @@ def raster_parameters(param):
     This function sets the parameters for the input rasters.
     
     * *minimum_valid* is the lowest valid value. Below it, the data is considered NaN.
-    * *CRS* is the coordinates reference system. It must be the same for all input maps.
+    * *CRS* is the coordinates reference system. It must be the same for all raster input maps.
 
     :param param: Dictionary including the user preferences.
     :type param: dict
@@ -166,7 +176,7 @@ def raster_cutting_parameters(paths, param):
     param["use_shapefile"] = 1
     
     # If using shapefile, please provide the following parameters/paths
-    paths["subregions"] = root + "02 Shapefiles for regions" + fs + "user-defined" + fs + "gadm36_GHA_1.shp"
+    paths["subregions"] = root + "02 Shapefiles for regions" + fs + "user-defined" + fs + "Europe_NUTS0_wo_Balkans.shp"
 
     # If not using shapefile, please provide the following parameters
     param["rows"] = 2
@@ -232,6 +242,32 @@ def maxp_parameters(param):
     param["maxp"] = {"maximum_number": 1800 * 1.01, "final_number": 28, "use_results_of_maxp_parts": 0}
 
     return param
+    
+    
+def transmission_parameters(param):
+    """
+    This function sets the parameters for max-p clustering. Currently, one or two iterations of the max-p algorithm can be used, depending on the number of polygons after
+    kmeans.
+    
+    * *maximum_number*: This number (positive float or integer) defines the maximum number of clusters that the max-p algorithm can cluster in one go. For about 1800 polygons,
+      the calculation takes about 8 hours. The problem has a complexity of O(n³) in the Bachmann-Landau notation.
+    * *final_number*: This integer defines the number of clusters that the user wishes to obtain at the end. There is no way to force the algorithm to deliver exactly that number
+      of regions. However, the threshold can be defined as a function of *final_number*, so that the result will be close to it.
+    * *use_results_of_maxp_parts*: This parameter should be set to zero, unless the user has already obtained results for the first run of the max-p algorithm, and want to skip
+      it and just run the second round. In that case, the user should set the value at 1.
+
+    :param param: Dictionary including the user preferences.
+    :type param: dict
+
+    :return param: The updated dictionary param.
+    :rtype: dict
+    """
+    param["CRS_grid"] = "epsg:4326"
+    param["default_cap_MVA"] = 100
+    param["default_line_type"] = "AC_OHL"
+    param["number_clusters"] = 28
+
+    return param
 
 
 ###########################
@@ -293,6 +329,11 @@ def output_folders(paths, param):
     paths["final_output"] = paths["region"] + "05 final_output" + fs
     if not os.path.isdir(paths["final_output"]):
         os.makedirs(paths["final_output"])
+        
+    # Output folder for transmission clustering
+    paths["lines_clustering"] = root + "02 Shapefiles for regions" + fs + "Clustering outputs" + fs + region + fs + "Clustering transmission lines" + fs
+    if not os.path.isdir(paths["lines_clustering"]):
+        os.makedirs(paths["lines_clustering"])
 
     return paths
 
@@ -329,5 +370,8 @@ def output_paths(paths):
     
     # Final result
     paths["output"] = paths["final_output"] + "final_result.shp"
+    
+    # Transmission clustering
+    paths["grid_connected"] = paths["lines_clustering"] + "grid_connected.shp"
 
     return paths

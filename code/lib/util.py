@@ -2,29 +2,28 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 from osgeo import gdal, osr, ogr
-from scipy.optimize import fsolve
 import os
 import pysal as ps
 from argparse import ArgumentParser
 import random as rd
-from sklearn.preprocessing import scale
-from sklearn.preprocessing import MinMaxScaler
+import networkx as nx
+import sklearn
+from sklearn import cluster
+from shapely import wkt
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
 from shapely.geometry.linestring import LineString
 from shapely.geometry import mapping
 from shapely.ops import polygonize
 from scipy.spatial import Voronoi
-from shapely import wkt
-import sklearn
-from sklearn import cluster
-import shutil
+from scipy.spatial import cKDTree
+from scipy.optimize import fsolve
 import scipy.sparse.csgraph as cg
+import shutil
 import libpysal
 import math
 from math import sqrt, exp
 import datetime
-import pprint
 import sys
 import fiona
 import inspect

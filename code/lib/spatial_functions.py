@@ -209,3 +209,26 @@ def calc_region(region, Crd_reg, res_desired, GeoRef):
         A_region = out_image[0]
 
     return A_region
+
+
+def ckd_nearest(gdf_a, gdf_b, bcol):
+    """
+    This function finds the distance and the nearest points in gdf_b for every point in gdf_a.
+
+    :param gdf_a: GeoDataFrame of points, forming a component that is disconnected from *gdf_b*.
+    :type gdf_a: geodataframe
+    :param gdf_b: GeoDataFrame of points, forming a component that is disconnected from *gdf_a*.
+    :type gdf_b: geodataframe
+    :param bcol: Name of column that should be listed in the resulting DataFrame.
+    :type bcol: string
+
+    :return df: Dataframe with the combinations of pair of points as rows, and ``'distance'`` and ``'bcol'`` as columns.
+    :rtype: pandas dataframe
+    """
+    na = np.array(list(zip(gdf_a.geometry.x, gdf_a.geometry.y)))
+    nb = np.array(list(zip(gdf_b.geometry.x, gdf_b.geometry.y)))
+    btree = cKDTree(nb)
+    dist, idx = btree.query(na, k=1)
+    df = pd.DataFrame.from_dict({"distance": dist.astype(float), "bcol": gdf_b.loc[idx, bcol].values})
+
+    return df
