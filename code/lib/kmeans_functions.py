@@ -40,13 +40,14 @@ def calculate_stats_for_non_empty_rasters(paths, param):
             file = paths["sub_rasters"] + raster_name + "_sub_part_%d.tif" % i
             dataset = gdal.Open(file)
             band_raster = dataset.GetRasterBand(1)
-            array_raster = band_raster.ReadAsArray()
+            array_raster = band_raster.ReadAsArray().astype(float)
             # Get number of columns and rows (needed later)
             non_empty_rasters.loc[(raster_name, i), ["no_columns", "no_rows"]] = (array_raster.shape[1], array_raster.shape[0])
             # Replace non-valid values with NaN
             array_raster[np.isnan(array_raster)] = param["minimum_valid"] - 1
             array_raster[array_raster < param["minimum_valid"]] = np.nan
             if np.sum(~np.isnan(array_raster)) == 0:
+                non_empty_rasters.drop((raster_name, i), inplace=True)
                 continue
 
             array_raster = array_raster.flatten()
@@ -326,7 +327,7 @@ def k_means_clustering(paths, param):
 
             (upper_left_x, x_size, x_rotation, upper_left_y, y_rotation, y_size) = dataset.GetGeoTransform()
             band_raster = dataset.GetRasterBand(1)
-            array_raster = band_raster.ReadAsArray()
+            array_raster = band_raster.ReadAsArray().astype(float)
             array_raster[np.isnan(array_raster)] = param["minimum_valid"] - 1
             array_raster[array_raster < param["minimum_valid"]] = np.nan
 
@@ -399,7 +400,7 @@ def k_means_clustering(paths, param):
         # Get cluster values
         clusters = np.empty([no_of_rows_in_map, no_of_columns_in_map])
         clusters[:] = param["minimum_valid"] - 1
-        clusters[y_index, x_index] = CL.labels_
+        clusters[y_index, x_index] = CL.labels_ + max(param["minimum_valid"], 0)
         # Convert array back to raster
         array_to_raster(clusters, paths["k_means"] + "clusters_part_%d.tif" % i, file)
 
