@@ -32,6 +32,39 @@ def array_to_raster(array, destination_file, input_raster_file):
     dataset.SetProjection(wkt_projection)
     dataset.GetRasterBand(1).WriteArray(array)
     dataset.FlushCache()
+    
+    
+def array2raster(newRasterfn, array, rasterOrigin, param):
+    """
+    This function saves array to geotiff raster format (used in cutting with shapefiles).
+
+    :param newRasterfn: Output path of the raster.
+    :type newRasterfn: string
+    :param array: Array to be converted into a raster.
+    :type array: numpy array
+    :param rasterOrigin: Latitude and longitude of the Northwestern corner of the raster.
+    :type rasterOrigin: list of two floats
+    :param param: Dictionary of parameters including *GeoRef* and *CRS*.
+    :type param: dict
+
+    :return: The raster file will be saved in the desired path *newRasterfn*.
+    :rtype: None
+    """
+    cols = array.shape[1]
+    rows = array.shape[0]
+    originX = rasterOrigin[0]
+    originY = rasterOrigin[1]
+
+    driver = gdal.GetDriverByName("GTiff")
+    outRaster = driver.Create(newRasterfn, cols, rows, 1, gdal.GDT_Float64, ["COMPRESS=PACKBITS"])
+    outRaster.SetGeoTransform((originX, param["GeoRef"]["pixelWidth"], 0, originY, 0, param["GeoRef"]["pixelHeight"]))
+    outRasterSRS = osr.SpatialReference()
+    outRasterSRS.ImportFromEPSG(int(param["CRS"][5:]))
+    outRaster.SetProjection(outRasterSRS.ExportToWkt())
+    outband = outRaster.GetRasterBand(1)
+    outband.WriteArray(np.flipud(array))
+    outband.FlushCache()
+    outband = None
 
 
 def polygonize_raster(input_file, output_shapefile, column_name):

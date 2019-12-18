@@ -1,4 +1,4 @@
-from lib.spatial_functions import calc_region, array_to_raster, crd_bounding_box, ind_from_crd
+from lib.spatial_functions import calc_region, array2raster, crd_bounding_box, ind_from_crd
 from lib.util import *
 
 
@@ -144,7 +144,7 @@ def cut_raster_using_shapefile(paths, param):
 
             # Write masked array
             output_path = paths["sub_rasters"] + raster_name + "_sub_part_%d.tif" % (reg + 1)
-            array_to_raster(dataset_masked, output_path, input_file)
+            array2raster(output_path, dataset_masked, [Crd_reg[0,3], Crd_reg[0,0]], param)
             print("Created part: " + raster_name + "_sub_part_" + str(reg + 1))
 
     # Writing the data related to map parts to input_stats.csv file for further use.
