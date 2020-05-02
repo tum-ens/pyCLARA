@@ -1,6 +1,37 @@
 from lib.spatial_functions import ckd_nearest
 from lib.util import *
 
+def lines_clustering(paths, param):
+    """
+    This function applies the max-p algorithm to the obtained polygons. Depending on the number of clusters in the whole map after k-means,
+    it decides whether to run max-p clustering multiple times (for each part, then for the whole map) or once (for the whole map).
+    If you have already results for each part, you can skip that by setting *use_results_of_max_parts* to 1.
+    
+    :param paths: Dictionary of paths pointing to input files and output locations.
+    :type paths: dict
+    :param param: Dictionary of parameters including transmission line related parameters.
+    :type param: dict
+    
+    :return: The called functions :mod:`clip_transmission_shapefile`, :mod:`create_voronoi_polygons`, and :mod:`cluster_transmission_shapefile` generate outputs.
+    :rtype: None
+    """
+    timecheck("Start")
+
+    # Connect island systems
+    connect_islands(paths, param)
+    
+    # Clip shapefile of transmission lines
+    clip_transmission_shapefile(paths)
+    
+    # Create Voronoi polygons
+    create_voronoi_polygons(paths)
+    
+    # Cluster transmission lines
+    cluster_transmission_shapefile(paths, param)
+
+    timecheck("End")
+
+
 def connect_islands(paths, param):
     """
     This script takes a shapefile of a transmission network and uses graph theory to identify its components (electric islands).
@@ -96,8 +127,38 @@ def connect_islands(paths, param):
     gdf_trans.to_file(driver="ESRI Shapefile", filename=paths["grid_connected"])
     
     timecheck("End")
+    
+    
+def clip_transmission_shapefile(paths):
+    """
+    This function clips the shapefile of the transmission lines using the shapefile of the scope.
+    MULTILINESTRING instances are formed as a result of clipping. Hence, the script cleans the clipped transmission file by replacing the MULTILINESTRING instances with LINESTRING
+    instances. 
 
-def cluster_trans_file(paths, param):
+    :param clipped_file: Gridkit transmission file clipped with Europe map.
+    :param original_file: Original Gridkit file.
+
+    :return:
+    """
+    # Reading the transmission file.
+    gdf_trans = gpd.read_file(clipped_file)
+
+    # Reading the gridkit_cleaned file. This is done in order to replace the MULTILINESTRING geometries that are formed
+    # as a result of clipping.
+    gdf_clean_trans = gpd.read_file(original_file)
+
+    # Replacing all lines in clipped transmission lines file with lines from clean transmission file so that
+    # clipped transmission lines(now MULTILINESTRINGs) get converted to LINESTRING objects.
+    for index, row in gdf_trans.iterrows():
+        id_feature = row["ID"]
+        one_feature_clean_trans = gdf_clean_trans[gdf_clean_trans["ID"] == id_feature]
+        gdf_trans.at[index, "geometry"] = one_feature_clean_trans["geometry"].iloc[0]
+
+    gdf_trans.to_file(driver="ESRI Shapefile", filename="trans_clean.shp")
+    
+    
+
+def cluster_transmission_shapefile_file(paths, param):
     """
     This function clusters the transmission network into a specified number of clusters.
     :param trans_file_path: The transmission network shapefile path.
@@ -606,46 +667,3 @@ def create_voronoi_polygons(points_list):
 
     return polygons_list
 
-
-def clean_clipped_trans_file(clipped_file, original_file):
-    """
-    This function cleans the clipped transmission file by replacing the MULTILINESTRING instances with LINESTRING
-    instances. MULTILINESTRING instances are formed as a result of clipping.
-
-    :param clipped_file:  Gridkit transmission file clipped with Europe map.
-    :param original_file: Original Gridkit file.
-
-    :return:
-    """
-    # Reading the transmission file.
-    gdf_trans = gpd.read_file(clipped_file)
-
-    # Reading the gridkit_cleaned file. This is done in order to replace the MULTILINESTRING geometries that are formed
-    # as a result of clipping.
-    gdf_clean_trans = gpd.read_file(original_file)
-
-    # Replacing all lines in clipped transmission lines file with lines from clean transmission file so that
-    # clipped transmission lines(now MULTILINESTRINGs) get converted to LINESTRING objects.
-    for index, row in gdf_trans.iterrows():
-        id_feature = row["ID"]
-        one_feature_clean_trans = gdf_clean_trans[gdf_clean_trans["ID"] == id_feature]
-        gdf_trans.at[index, "geometry"] = one_feature_clean_trans["geometry"].iloc[0]
-
-    gdf_trans.to_file(driver="ESRI Shapefile", filename="trans_clean.shp")
-
-
-
-if __name__ == "__main__":
-    #  Setting basic config for logger.
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s [%(levelname)s] - %(message)s", filename="log_connecting_islands_2.txt"
-    )  # pass explicit filename here
-    logger = logging.getLogger()
-    print("------------------------- Starting Clustering -------------------------")
-    current_time = datetime.datetime.now()
-    formatted_time = current_time.strftime("%Y-%m-%d_%H:%M:%S")
-    print("Started at: " + formatted_time)
-
-    clean_clipped_trans_file = "clipped_gridkit_connected.shp"
-    voronoi_file = "clipped_voronoi_latest.shp"
-    cluster_trans_file(clean_clipped_trans_file, voronoi_file)

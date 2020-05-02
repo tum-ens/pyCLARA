@@ -246,15 +246,12 @@ def maxp_parameters(param):
     
 def transmission_parameters(param):
     """
-    This function sets the parameters for max-p clustering. Currently, one or two iterations of the max-p algorithm can be used, depending on the number of polygons after
-    kmeans.
+    This function sets the parameters for transmission line clustering.
     
-    * *maximum_number*: This number (positive float or integer) defines the maximum number of clusters that the max-p algorithm can cluster in one go. For about 1800 polygons,
-      the calculation takes about 8 hours. The problem has a complexity of O(n³) in the Bachmann-Landau notation.
-    * *final_number*: This integer defines the number of clusters that the user wishes to obtain at the end. There is no way to force the algorithm to deliver exactly that number
-      of regions. However, the threshold can be defined as a function of *final_number*, so that the result will be close to it.
-    * *use_results_of_maxp_parts*: This parameter should be set to zero, unless the user has already obtained results for the first run of the max-p algorithm, and want to skip
-      it and just run the second round. In that case, the user should set the value at 1.
+    * *CRS_grid*: The coordinates reference system of the shapefile of transmission lines, in order to read it correctly.
+    * *default_cap_MVA*: 
+    * *default_line_type*:
+    * *number_clusters*: Target number of regions after clustering, to be used as a condition to stop the algorithm.
 
     :param param: Dictionary including the user preferences.
     :type param: dict

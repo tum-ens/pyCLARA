@@ -1,7 +1,6 @@
-kmeans\_functions module
-========================================
+kmeans\_functions.py
+====================
 
 .. automodule:: lib.kmeans_functions
    :members:
-   :undoc-members:
-   :show-inheritance:
+

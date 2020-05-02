@@ -1,7 +1,0 @@
-helping\_functions module
-========================================
-
-.. automodule:: lib.helping_functions
-   :members:
-   :undoc-members:
-   :show-inheritance:

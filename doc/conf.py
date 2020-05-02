@@ -20,12 +20,12 @@ import sphinxcontrib.bibtex
 
 # -- Project information -----------------------------------------------------
 
-project = "geoclustering"
+project = "pyCLARA"
 copyright = "ENS 2019"
 author = "Kais Siala, Waleed Sattar Khan, Mohammad Youssef Mahfouz"
 
 # The full version, including alpha/beta/rc tags
-release = "1.0.0"
+release = "1.0"
 version = release
 
 
@@ -34,7 +34,10 @@ version = release
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["sphinx.ext.autodoc", "sphinx_rtd_theme"]
+extensions = ['sphinx.ext.autodoc',
+              "sphinx_rtd_theme",
+              'sphinxcontrib.bibtex'
+              ]
 
 master_doc = "index"
 
@@ -78,21 +81,45 @@ html_theme_options = {
 # 'documentclass': '',  # not clear
 # 'toctree_only': True  # (bool) Include startdocname in the latex/pdf ? can be used to have different first pages. The first toctree entry in startdocname will be used.
 
-latex_documents = [(master_doc, project + ".tex", project, "Kais Siala \\ \\Waleed Sattar Khan \\ \\Mohammad Youssef Mahfouz", "manual", True)]
+latex_documents = [(master_doc, # startdocname
+					project+'.tex', # targetname
+					project, # title
+					r''' Kais Siala \\ Waleed Sattar Khan \\ Mohammad Youssef Mahfouz \vspace{1cm} \\ Version 1.0''', # author
+					'manual', # documentclass
+					True)] # toctree_only
 
 # Remove redundant white pages
 latex_elements = {
-    "classoptions": "oneside",
-    "papersize": "letterpaper",
-    "pointsize": "11pt",
-    "preamble": r"""
+    'classoptions': 'twoside',
+    'papersize': 'a4paper',
+    'pointsize': '11pt',
+    "passoptionstopackages": r"""
         \usepackage{charter}
         \usepackage[T1]{fontenc}
+        \usepackage{tabulary}
+        \usepackage{fancyvrb}
+        \usepackage{upquote}
+        \usepackage{capt-of}
+        \usepackage{needspace}
         \usepackage{inconsolata}
+        \makeatletter
+        \fancypagestyle{normal}{
+        \fancyhf{}
+        \fancyfoot[LE,RO]{{\py@HeaderFamily\thepage}}
+        \fancyfoot[LO]{{\py@HeaderFamily\nouppercase{\rightmark}}}
+        \fancyfoot[RE]{{\py@HeaderFamily\nouppercase{\leftmark}}}
+        \fancyhead[LE,RO]{{\py@HeaderFamily \@title, \py@release}}
+        \renewcommand{\headrulewidth}{0.4pt}
+        \renewcommand{\footrulewidth}{0.4pt}
+        % define chaptermark with \@chappos when \@chappos is available for Japanese
+        \spx@ifundefined{@chappos}{}
+            {\def\chaptermark##1{\markboth{\@chapapp\space\thechapter\space\@chappos\space ##1}{}}}
+        }
+        \makeatother
     """,
 }
 
-# latex_toplevel_sectioning = 'section'
+latex_toplevel_sectioning = 'chapter'
 # This value determines the topmost sectioning unit. It should be chosen from 'part', 'chapter' or 'section'.
 # The default is None; the topmost sectioning unit is switched by documentclass: section is used if documentclass will be howto, otherwise chapter will be used.
 # Note that if LaTeX uses \part command, then the numbering of sectioning units one level deep gets off-sync with HTML numbering, because LaTeX numbers continuously \chapter

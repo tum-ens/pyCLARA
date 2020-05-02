@@ -1,9 +1,9 @@
 =============
-geoclustering
+pyCLARA
 =============
 
 ---------------------------------------------------
-Clustering module for high-resolution spatial data
+python Clustering of Lines And RAsters 
 ---------------------------------------------------
 
 :Code developers: Kais Siala, Mohammad Youssed Mahfouz, Waleed Sattar Khan, Houssame Houmy

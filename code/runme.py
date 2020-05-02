@@ -23,5 +23,4 @@ if __name__ == "__main__":
     # max_p_clustering(paths, param)
     
     # lines clustering functions
-    #connect_islands(paths, param)
     cluster_trans_file(paths, param)

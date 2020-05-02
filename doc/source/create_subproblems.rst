@@ -1,7 +1,5 @@
-create\_subproblems module
-========================================
+create\_subproblems.py
+=======================
 
 .. automodule:: lib.create_subproblems
    :members:
-   :undoc-members:
-   :show-inheritance:
