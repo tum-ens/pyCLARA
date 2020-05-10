@@ -32,8 +32,8 @@ def array_to_raster(array, destination_file, input_raster_file):
     dataset.SetProjection(wkt_projection)
     dataset.GetRasterBand(1).WriteArray(array)
     dataset.FlushCache()
-    
-    
+
+
 def array2raster(newRasterfn, array, rasterOrigin, param):
     """
     This function saves array to geotiff raster format (used in cutting with shapefiles).
@@ -96,29 +96,6 @@ def polygonize_raster(input_file, output_shapefile, column_name):
     out_layer.CreateField(new_field)
     gdal.Polygonize(band, None, out_layer, 0, [], callback=None)
     out_data_source.Destroy()
-
-
-def create_voronoi_polygons(points_list):
-    """
-    This function makes voronoi polygons by taking a points list as input.
-    (to be completed)
-    
-    :param points_list: The points list is used to make voronoi polygons.
-    
-    :return:
-    """
-
-    voronoi_polygons = Voronoi(points_list)
-
-    # Make lines from voronoi polygons
-    lines = [LineString(voronoi_polygons.vertices[line]) for line in voronoi_polygons.ridge_vertices]
-
-    # Return list of polygons created from lines
-    polygons_list = list()
-    for polygon in polygonize(lines):
-        polygons_list.append(polygon)
-
-    return polygons_list
 
 
 def calc_geotiff(Crd_all, res_desired):
@@ -265,3 +242,55 @@ def ckd_nearest(gdf_a, gdf_b, bcol):
     df = pd.DataFrame.from_dict({"distance": dist.astype(float), "bcol": gdf_b.loc[idx, bcol].values})
 
     return df
+
+
+def assign_disconnected_components_to_nearest_neighbor(data, w):
+    """
+    This loop is used to force any disconnected group of polygons (graph component) to be assigned to the nearest neighbors.
+    
+    :param data: The geodataframe of polygons to be clustered.
+    :type data: geodataframe
+    :param w: The pysal weights object of the graph (``w.neighbors`` is similar to an adjacency matrix).
+    :type w: pysal weights object
+    
+    :return w: The updated pysal weights objected is returned.
+    :rtype: pysal weights object
+    """
+
+    if len(data) > 1:
+        [n_components, labels] = cg.connected_components(w.sparse)
+        if n_components > 1:
+            # Attach islands if any to nearest neighbor
+            knnw = ps.weights.KNN.from_dataframe(data, k=1)
+            w = libpysal.weights.util.attach_islands(w, knnw)
+            [n_components, labels] = cg.connected_components(w.sparse)
+
+        if n_components > 1:
+            # Disconnected areas exist. Removing them before max-p can be applied
+            for comp in range(n_components):
+                # Filter polygons within that component
+                data_comp = data.loc[labels == comp]
+                ind_comp = list(data_comp.index)
+
+                data_comp.loc[ind_comp, "geometry"] = data_comp.loc[ind_comp, "geometry"].buffer(0)
+                data_comp.loc[ind_comp, "dissolve_field"] = 1
+                data_comp = data_comp.dissolve(by="dissolve_field")
+                data_comp.index = [len(data)]
+
+                data_new = data.drop(ind_comp)
+                data_new = data_new.append(data_comp, sort=True)
+
+                knnw = ps.weights.KNN.from_dataframe(data_new, k=1)
+                for radius in range(1, len(data) - 1):
+                    stop_condition = False
+                    knn = ps.weights.KNN.from_dataframe(data, k=radius)
+                    for ind in ind_comp:
+                        if knn.neighbors[ind][radius - 1] == knnw.neighbors[len(data)][0]:
+                            w.neighbors[ind] = w.neighbors[ind] + knnw.neighbors[len(data)]
+                            w.neighbors[knnw.neighbors[len(data)][0]] = w.neighbors[knnw.neighbors[len(data)][0]] + [ind]
+                            stop_condition = True
+                            continue
+                    if stop_condition:
+                        break
+
+    return w

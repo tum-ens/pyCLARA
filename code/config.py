@@ -23,7 +23,7 @@ def configuration():
     param = transmission_parameters(param)
 
     paths = output_folders(paths, param)
-    paths = output_paths(paths)
+    paths = output_paths(paths, param)
 
     return paths, param
 
@@ -85,7 +85,7 @@ def scope_paths_and_parameters(paths, param):
     """
     # Name tags for the scope
     param["region_name"] = "Europe"  # Name tag of the spatial scope
-    
+
     # Path to the shapefile of the scope (useful for lines clustering)
     PathTemp = root + "02 Shapefiles for regions" + fs + "User-defined" + fs
     paths["spatial_scope"] = PathTemp + "Europe_NUTS0_wo_Balkans.shp"
@@ -103,7 +103,7 @@ def scope_paths_and_parameters(paths, param):
             1,
         ),
     }
-    
+
     # Input shapefile for transmission lines clustering
     paths["grid_input"] = root + "03 Intermediate files" + fs + "Files Europe" + fs + "Grid" + fs + "grid_cleaned.shp"
 
@@ -174,14 +174,14 @@ def raster_cutting_parameters(paths, param):
     :rtype: tuple(dict, dict)
     """
     param["use_shapefile"] = 1
-    
+
     # If using shapefile, please provide the following parameters/paths
     paths["subregions"] = root + "02 Shapefiles for regions" + fs + "user-defined" + fs + "Europe_NUTS0_wo_Balkans.shp"
 
     # If not using shapefile, please provide the following parameters
     param["rows"] = 2
     param["cols"] = 2
-    
+
     return paths, param
 
 
@@ -242,8 +242,8 @@ def maxp_parameters(param):
     param["maxp"] = {"maximum_number": 1800 * 1.01, "final_number": 28, "use_results_of_maxp_parts": 0}
 
     return param
-    
-    
+
+
 def transmission_parameters(param):
     """
     This function sets the parameters for transmission line clustering.
@@ -252,6 +252,8 @@ def transmission_parameters(param):
     * *default_cap_MVA*: 
     * *default_line_type*:
     * *number_clusters*: Target number of regions after clustering, to be used as a condition to stop the algorithm.
+    * *intermediate_number*: List of numbers of clusters at which an intermediate shapefile will be saved. The values affect the path *grid_intermediate*.
+    * *debugging_number*: Number of clusters within an intermediate shapefile, that can be used as an input (for debugging). It affects the path *grid_debugging*.
 
     :param param: Dictionary including the user preferences.
     :type param: dict
@@ -263,6 +265,8 @@ def transmission_parameters(param):
     param["default_cap_MVA"] = 100
     param["default_line_type"] = "AC_OHL"
     param["number_clusters"] = 28
+    param["intermediate_number"] = [8200, 4000, 1000, 200, 50]
+    param["debugging_number"] = 4000
 
     return param
 
@@ -282,6 +286,7 @@ def output_folders(paths, param):
       * *polygons* is a subfolder containing the polygonized kmeans clusters.
       * *parts_max_p* is a subfolder containing the results of the first round of max-p (if there is a second round).
       * *final_output* is a subfolder containing the final shapefile.
+      * *lines_clustering* is a subfolder containing the intermediate and final results of the line clustering.
       
     All the folders are created at the beginning of the calculation, if they do not already exist,
     
@@ -326,16 +331,18 @@ def output_folders(paths, param):
     paths["final_output"] = paths["region"] + "05 final_output" + fs
     if not os.path.isdir(paths["final_output"]):
         os.makedirs(paths["final_output"])
-        
+
     # Output folder for transmission clustering
-    paths["lines_clustering"] = root + "02 Shapefiles for regions" + fs + "Clustering outputs" + fs + region + fs + "Clustering transmission lines" + fs
+    paths["lines_clustering"] = (
+        root + "02 Shapefiles for regions" + fs + "Clustering outputs" + fs + region + fs + "Clustering transmission lines" + fs
+    )
     if not os.path.isdir(paths["lines_clustering"]):
         os.makedirs(paths["lines_clustering"])
 
     return paths
 
 
-def output_paths(paths):
+def output_paths(paths, param):
     """
     This function defines the paths of some of the files that will be saved:
     
@@ -347,6 +354,15 @@ def output_paths(paths):
       * *max_p_combined* is the path to the shapefile that is generated after a first round of the max-p algorithm (if there is a second).
       * *output* is the path to the shapefile that is generated at the end, i.e. after running max_p_whole_map in :mod:`lib.max_p_functions.py`.
     
+    For line clustering, the keys start with *grid_*:
+    
+      * *grid_connected* is the path to the shapefile of lines after adding lines to connect island grids.
+      * *grid_clipped* is the path to the shapefile of lines after clipping it with the scope.
+      * *grid_voronoi* is the path to the shapefile of voronoi polygons made from the points at the start/end of the lines.
+      * *grid_debugging* is the path of an intermediate file during the clustering of regions based on their connectivity.
+      * *grid_regions* is the path to the final result of the clustering (shapefile of regions based on their connectivity).
+      * *grid_bottlenecks* is the path to the final result of the clustering (shapefile of transmission line bottlenecks).
+      
     :param paths: Dictionary including the paths.
     :type paths: dict
 
@@ -364,11 +380,15 @@ def output_paths(paths):
 
     # Combined map after max-p 1
     paths["max_p_combined"] = paths["parts_max_p"] + "max_p_combined.shp"
-    
+
     # Final result
     paths["output"] = paths["final_output"] + "final_result.shp"
-    
+
     # Transmission clustering
     paths["grid_connected"] = paths["lines_clustering"] + "grid_connected.shp"
-
+    paths["grid_clipped"] = paths["lines_clustering"] + "grid_clipped.shp"
+    paths["grid_voronoi"] = paths["lines_clustering"] + "grid_voronoi.shp"
+    paths["grid_debugging"] = paths["lines_clustering"] + "grid_clusters_" + str(param["debugging_number"]) + ".shp"
+    paths["grid_regions"] = paths["lines_clustering"] + "grid_" + str(param["number_clusters"]) + "_regions.shp"
+    paths["grid_bottlenecks"] = paths["lines_clustering"] + "grid_bottlenecks.shp"
     return paths

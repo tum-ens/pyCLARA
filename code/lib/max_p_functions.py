@@ -1,3 +1,4 @@
+from lib.spatial_functions import assign_disconnected_components_to_nearest_neighbor
 from lib.util import *
 
 
@@ -86,7 +87,7 @@ def max_p_parts(paths, param):
 
         # Create weights object
         w = ps.weights.Queen.from_shapefile(paths["polygons"] + "result_%d.shp" % i)
-        w = assign_disconnected_components_to_nearest_neighbor(paths["polygons"] + "result_%d.shp" % i, w, data)
+        w = assign_disconnected_components_to_nearest_neighbor(data, w)
 
         # Get coefficients for threshold equation
         coef = get_coefficients(paths)
@@ -177,6 +178,8 @@ def max_p_whole_map(paths, param, combined_file):
     :param param: Dictionary of parameters containing the *raster_names* and their *weights* and aggregation methods *agg*, the desired number of features at the end
       *final_number*, and the *CRS* to be used for the shapefiles.
     :type param: dict
+    :param combined_file: Path to the shapefile to use as input. It is either the result obtained from :mod:`max_p_parts`, or the one obtained from :mod:`polygonize_after_k_means`.
+    :type combined_file: str
     
     :return: The result of the clustering is one shapefile for the whole map saved directly in *output*.
     :rtype: None
@@ -195,7 +198,7 @@ def max_p_whole_map(paths, param, combined_file):
 
     # Create weights object
     w = ps.weights.Queen.from_shapefile(combined_file)
-    w = assign_disconnected_components_to_nearest_neighbor(combined_file, w, data)
+    w = assign_disconnected_components_to_nearest_neighbor(data, w)
 
     # Correcting neighbors
     print("Correcting neighbors.")
@@ -246,61 +249,6 @@ def max_p_whole_map(paths, param, combined_file):
     timecheck("End")
 
 
-def assign_disconnected_components_to_nearest_neighbor(shapefile, w, data):
-    """
-    This loop is used to force any disconnected group of polygons (graph component) to be assigned to the nearest neighbors.
-    
-    :param shapefile: The path to the shapefile that may contain disconnected components (islands of polygons).
-    :type shapefile: string
-    :param w: The pysal weights object of the graph (``w.neighbors`` is similar to an adjacency matrix).
-    :type w: pysal weights object
-    :param data: The geodataframe of polygons to be clustered.
-    :type data: geodataframe
-    
-    :return w: The updated pysal weights objected is returned.
-    :rtype: pysal weights object
-    """
-
-    if len(data) > 1:
-        knnw = ps.weights.KNN.from_shapefile(shapefile, k=1)
-
-        [n_components, labels] = cg.connected_components(w.sparse)
-        if n_components > 1:
-            # Attach islands if any to nearest neighbor
-            w = libpysal.weights.util.attach_islands(w, knnw)
-            [n_components, labels] = cg.connected_components(w.sparse)
-
-        if n_components > 1:
-            # Disconnected areas exist. Removing them before max-p can be applied
-            for comp in range(n_components):
-                # Filter polygons within that component
-                data_comp = data.loc[labels == comp]
-                ind_comp = list(data_comp.index)
-
-                data_comp["geometry"] = data_comp.buffer(0)
-                data_comp["dissolve_field"] = 1
-                data_comp = data_comp.dissolve(by="dissolve_field")
-                data_comp.index = [len(data)]
-
-                data_new = data.drop(ind_comp)
-                data_new = data_new.append(data_comp, sort=True)
-
-                knnw = ps.weights.KNN.from_dataframe(data_new, k=1)
-                for radius in range(1, len(data) - 1):
-                    stop_condition = False
-                    knn = ps.weights.KNN.from_dataframe(data, k=radius)
-                    for ind in ind_comp:
-                        if knn.neighbors[ind][radius - 1] == knnw.neighbors[len(data)][0]:
-                            w.neighbors[ind] = w.neighbors[ind] + knnw.neighbors[len(data)]
-                            w.neighbors[knnw.neighbors[len(data)][0]] = w.neighbors[knnw.neighbors[len(data)][0]] + [ind]
-                            stop_condition = True
-                            continue
-                    if stop_condition:
-                        break
-
-    return w
-
-
 def correct_neighbors_in_shapefile(param, combined_file, existing_neighbors):
     """
     This function finds the neighbors in the shapefile. Somehow, max-p cannot figure out the correct neighbors and
@@ -347,7 +295,6 @@ def correct_neighbors_in_shapefile(param, combined_file, existing_neighbors):
             neighbors.remove(cluster_obj["CL"])
         except ValueError:
             pass
-        # neighbors = [cl_no for cl_no in neighbors if cluster_number.CL != cl_no]
         # Add names of neighbors as NEIGHBORS value
         df.loc[index, "NEIGHBORS"] = ",".join(str(n) for n in neighbors)
 

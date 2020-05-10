@@ -5,7 +5,7 @@ channels:
 dependencies:
   - pysal=1.14.4
   - pandas
-  - geopandas
+  - geopandas=0.7.0
   - scikit-learn
   - libpysal
   - rasterio

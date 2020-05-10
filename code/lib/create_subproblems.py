@@ -144,7 +144,7 @@ def cut_raster_using_shapefile(paths, param):
 
             # Write masked array
             output_path = paths["sub_rasters"] + raster_name + "_sub_part_%d.tif" % (reg + 1)
-            array2raster(output_path, dataset_masked, [Crd_reg[0,3], Crd_reg[0,0]], param)
+            array2raster(output_path, dataset_masked, [Crd_reg[0, 3], Crd_reg[0, 0]], param)
             print("Created part: " + raster_name + "_sub_part_" + str(reg + 1))
 
     # Writing the data related to map parts to input_stats.csv file for further use.

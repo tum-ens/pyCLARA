@@ -11,16 +11,19 @@ import sklearn
 from sklearn import cluster
 from shapely import wkt
 from shapely.geometry.multipolygon import MultiPolygon
+from shapely.geometry.polygon import Polygon
 from shapely.geometry.point import Point
 from shapely.geometry.linestring import LineString
 from shapely.geometry import mapping
 from shapely.ops import polygonize
-from scipy.spatial import Voronoi
+
+# from scipy.spatial import Voronoi
 from scipy.spatial import cKDTree
 from scipy.optimize import fsolve
 import scipy.sparse.csgraph as cg
 import shutil
 import libpysal
+from libpysal.cg.voronoi import voronoi
 import math
 from math import sqrt, exp
 import datetime
