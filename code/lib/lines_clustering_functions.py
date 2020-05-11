@@ -324,13 +324,14 @@ def cluster_transmission_shapefile(paths, param):
     compression = len(gdf_voronoi.index) - param["number_clusters"]
     gdf_voronoi["Cluster"] = gdf_voronoi["ID_polygon"]
 
-    while len(set(gdf_voronoi["Cluster"].values)) > max(islands, param["number_clusters"]):
+    print("Clustering regions based on connectivity")
+    while len(set(gdf_voronoi["Cluster"].values)) > param["number_clusters"]:
         # Progress bar
-        display_progress(
-            "Clustering regions based on connectivity:",
-            [compression, compression - len(set(gdf_voronoi["Cluster"].values)) + param["number_clusters"]],
-        )
+        display_progress("", [compression, compression - len(set(gdf_voronoi["Cluster"].values)) + param["number_clusters"]])
         
+        # Reset Ratio to zero for very large areas
+        gdf_voronoi.loc[gdf_voronoi["Area"] > (total_area / param["number_clusters"]), "Ratio"] = 0
+            
         # Get the index of the polygon with the highest ratio
         poly1_index = gdf_voronoi["Ratio"].idxmax()
         poly1 = gdf_voronoi.loc[poly1_index]
@@ -358,10 +359,6 @@ def cluster_transmission_shapefile(paths, param):
         # Dissolve geometries based on cluster number
         gdf_voronoi = gdf_voronoi.dissolve(by=["Cluster"]).reset_index()
         gdf_voronoi.index = gdf_voronoi["ID_polygon"]
-
-        # Reset Ratio to zero for very large areas
-        if sum(gdf_voronoi["Area"] > (total_area / param["number_clusters"] * 3)) > 0:
-            gdf_voronoi.loc[gdf_voronoi["Area"] > (total_area / param["number_clusters"] * 3), "Ratio"] = 0
 
         for ind in gdf_voronoi.loc[gdf_voronoi["Cluster"] < 0].index:
             try:
@@ -408,4 +405,5 @@ def cluster_transmission_shapefile(paths, param):
     # Save results
     gdf_voronoi.drop(columns=["elec_neighbors", "trans_lines", "ID_polygon"]).to_file(driver="ESRI Shapefile", filename=paths["grid_regions"])
 
+    print("\n")
     timecheck("End")
