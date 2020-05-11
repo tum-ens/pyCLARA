@@ -19,9 +19,9 @@ def lines_clustering(paths, param):
     """
     timecheck("Start")
 
-    # connect_islands(paths, param)
-    # clip_transmission_shapefile(paths, param)
-    # create_voronoi_polygons(paths, param)
+    connect_islands(paths, param)
+    clip_transmission_shapefile(paths, param)
+    create_voronoi_polygons(paths, param)
     cluster_transmission_shapefile(paths, param)
 
     timecheck("End")
@@ -328,10 +328,10 @@ def cluster_transmission_shapefile(paths, param):
     while len(set(gdf_voronoi["Cluster"].values)) > param["number_clusters"]:
         # Progress bar
         display_progress("", [compression, compression - len(set(gdf_voronoi["Cluster"].values)) + param["number_clusters"]])
-        
+
         # Reset Ratio to zero for very large areas
         gdf_voronoi.loc[gdf_voronoi["Area"] > (total_area / param["number_clusters"]), "Ratio"] = 0
-            
+
         # Get the index of the polygon with the highest ratio
         poly1_index = gdf_voronoi["Ratio"].idxmax()
         poly1 = gdf_voronoi.loc[poly1_index]

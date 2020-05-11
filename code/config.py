@@ -84,11 +84,11 @@ def scope_paths_and_parameters(paths, param):
     :rtype: tuple(dict, dict)
     """
     # Name tags for the scope
-    param["region_name"] = "Germany"  # Name tag of the spatial scope
+    param["region_name"] = "Europe"  # Name tag of the spatial scope
 
     # Path to the shapefile of the scope (useful for lines clustering)
     PathTemp = root + "02 Shapefiles for regions" + fs + "User-defined" + fs
-    paths["spatial_scope"] = PathTemp + "gadm36_DEU_0.shp"
+    paths["spatial_scope"] = PathTemp + "Europe_NUTS0_wo_Balkans.shp"
 
     # Input rasters with their aggregation function and weights
     inputs = {
@@ -264,7 +264,7 @@ def transmission_parameters(param):
     param["CRS_grid"] = "epsg:4326"
     param["default_cap_MVA"] = 100
     param["default_line_type"] = "AC_OHL"
-    param["number_clusters"] = 16
+    param["number_clusters"] = 28
     param["intermediate_number"] = [8200, 4000, 1000, 200, 50]
     param["debugging_number"] = 1000
 
