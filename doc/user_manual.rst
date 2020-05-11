@@ -8,11 +8,11 @@ Installation
 
 First, clone the git repository in a directory of your choice using a Command Prompt window::
 
-	$ ~\directory-of-my-choice> git clone https://github.com/tum-ens/geoclustering.git
+	$ ~\directory-of-my-choice> git clone https://github.com/tum-ens/pyCLARA.git
 
 We recommend using conda and installing the environment from the file ``geoclustering.yml`` that you can find in the repository. In the Command Prompt window, type::
 
-	$ cd geoclustering\env\
+	$ cd pyCLARA\env\
 	$ conda env create -f geoclustering.yml
 
 Then activate the environment::
@@ -64,10 +64,22 @@ runme.py
 .. literalinclude:: ../code/runme.py
    :language: python
    :linenos:
-   :emphasize-lines: 1
+   :emphasize-lines: 12, 19, 20, 23, 27
 
 Recommended input sources
 -------------------------
+For a list of GIS data sources, check this `wikipedia article <https://en.wikipedia.org/wiki/List_of_GIS_data_sources>`_.
+
+Shapefile of transmission lines
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+Shapefile of the region of interest (useful for lines clustering)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The shapefile allows to identify the lines that are inside the scope, and those that lie outside of it. Hence, only the outer borders of the polygons matter. If you are interested in administrative divisions, you may consider downloading the shapefiles from 
+the website of the Global Administration Divisions `(GADM) <https://gadm.org/download_country_v3.html>`_. You can also create your 
+own shapefiles using a GIS software.
+
 
 
 Recommended workflow

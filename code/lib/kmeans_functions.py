@@ -84,14 +84,17 @@ def calculate_stats_for_non_empty_rasters(paths, param):
     timecheck("End")
 
 
-def choose_ref_part(paths, param):
+def choose_ref_part(paths):
     """
     This function chooses the reference part for the function :mod:`identify_max_number_of_clusters_in_ref_part`.
     The reference part is chosen based on the product of relative size and relative standard deviation.
     The part with the largest product in all the input files is chosen.
     
-    :param param: The parameters from config.py
-    :param paths: The paths to the rasters and to the output folders, from config.py
+    :param paths: The paths to the CSV files *non_empty_rasters* and *input_stats*.
+    :type paths: dict
+    
+    :return: The CSV file *input_stats* is updated.
+    :rtype: None
     """
 
     # Read CSV files
@@ -119,11 +122,20 @@ def identify_opt_number_of_clusters(paths, param, part, size_of_raster, std_of_r
     In case you are using the maximum number for the whole map, then the optimal number in each part is a function of the total number,
     of the relative size and relative standard deviation, and the weights in *ratio_size_to_std*.
     
-    :param paths: Dictionary of paths pointing to the location of the input CSV file *non_empty_rasters*.
+    :param paths: Dictionary of paths pointing to the location of the input CSV file *non_empty_rasters* and to *input_stats*.
     :type paths: dict
     :param param: Dictionary of parameters including the ratio between the relative size and the relative standard deviation *ratio_size_to_std*
       and the *method* for setting the number of clusters.
+    :type param: dict
+    :param part: Counter for the raster parts.
+    :type part: integer
+    :param size_of_raster: Number of valid data points in the raster part.
+    :type size_of_raster: integer
+    :param std_of_raster: Standard deviation of the data in the raster part.
+    :type std_of_raster: float
     
+    :return optimum_no_of_clusters_for_raster: Optimum number of clusters for the raster part according to the chosen method.
+    :rtype: integer
     """
     # This function is used to determine the optimum number of clusters for respective part
 

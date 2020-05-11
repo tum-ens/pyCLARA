@@ -11,17 +11,16 @@ if __name__ == "__main__":
 
     # cut_raster(paths, param)
 
-    # # k-means functions
-    # calculate_stats_for_non_empty_rasters(paths, param)
-    # if param["kmeans"]["method"] == "reference_part":
-        # choose_ref_part(paths, param)
-        # identify_max_number_of_clusters_in_ref_part(paths, param)
-    # k_means_clustering(paths, param)
-    # polygonize_after_k_means(paths, param)
+    # k-means functions
+    calculate_stats_for_non_empty_rasters(paths, param)
+    if param["kmeans"]["method"] == "reference_part":
+        choose_ref_part(paths)
+        identify_max_number_of_clusters_in_ref_part(paths, param)
+    k_means_clustering(paths, param)
+    polygonize_after_k_means(paths, param)
 
-    # # max-p functions
-    # max_p_clustering(paths, param)
-    
+    # max-p functions
+    max_p_clustering(paths, param)
+
     # lines clustering functions
-    #connect_islands(paths, param)
-    cluster_trans_file(paths, param)
+    lines_clustering(paths, param)
