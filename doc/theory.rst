@@ -21,7 +21,7 @@ The k-means method is one of the oldest methods that has been used for clusterin
 
 Generally, the k-means algorithm has a time complexity equal to O (n2) [4]. Moreover, it is a heuristic method which means that convergence to a global optimum is not guaranteed. However, as k-means is a relatively fast-algorithm, it is a common practice to run k-means method of clustering with different starting conditions and choose the run that has the best results.
 
-k-means ++ Method
+k-means++ Method
 ==================
 The k-means++ clustering algorithm can be thought of as an add-on to the standard k-means clustering algorithm. The k-means++ algorithm is designed to improve the quality of clusters that are formed as local optimum using the standard k-means method [4]. Moreover, this method also tends to lower the runtime of the subsequently used k-means algorithm by making it converge quickly. k-means++ achieves this by choosing “seeds” for k-means algorithm. The “seeds” are the initial k cluster centers which are chosen based on a certain criteria instead of randomly choosing the cluster centers as was the case in the standard k-means algorithm.
 The steps that k-means++ algorithm follows for initializing the cluster centers are as follows:

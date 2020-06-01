@@ -9,7 +9,7 @@ if __name__ == "__main__":
 
     paths, param = initialization()
 
-    # cut_raster(paths, param)
+    cut_raster(paths, param)
 
     # k-means functions
     calculate_stats_for_non_empty_rasters(paths, param)

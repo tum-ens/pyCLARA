@@ -22,19 +22,17 @@ The script ``runme.py`` calls the main functions of the code, which are explaine
    source/kmeans_functions
    source/max_p_functions
    
-For the hierarchical clustering of the transmission network, use the following scripts:
+For the hierarchical clustering of the transmission network, use the following script:
 
 .. toctree::
    :maxdepth: 3
 
-   source/clustering_transmission
-   source/connecting_transmission_islands
+   source/lines_clustering_functions
 
-Helping functions for the models are included in ``helping_functions.py``, ``spatial_functions.py``, and ``util.py``.
+Helping functions for the models are included in ``spatial_functions.py``, and ``util.py``.
 
 .. toctree::
    :maxdepth: 3
    
-   source/helping_functions
    source/spatial_functions
    source/util

@@ -16,8 +16,6 @@ from shapely.geometry.point import Point
 from shapely.geometry.linestring import LineString
 from shapely.geometry import mapping
 from shapely.ops import polygonize
-
-# from scipy.spatial import Voronoi
 from scipy.spatial import cKDTree
 from scipy.optimize import fsolve
 import scipy.sparse.csgraph as cg
