@@ -250,10 +250,18 @@ def update_values_in_geodataframes(gdf_trans, gdf_voronoi, poly1, poly2, cluster
 def cluster_transmission_shapefile(paths, param):
     """
     This function clusters the transmission network into a specified number of clusters.
-    :param trans_file_path: The transmission network shapefile path.
-    :param voronoi_file_path: The clipped voronoi polygons file path.
-    :param no_of_clusters: The number of clusters that the map will be cut into.
-    :return:
+    It first reads the shapefile of voronoi polygons, and initializes its attributes *elec_neighbors*, *trans_lines*,
+    *Area*, *Cap*, and *Ratio*. Starting with the polygon with the highest ratio, it merges it with its electric neighbors
+    with the highest ratio as well. It then updates the values and repeats the algorithm, until the target number of
+    clusters is reached.
+    
+    :param paths: Dictionary of paths pointing to *grid_clipped*, *grid_debugging*, *grid_voronoi*, and to the outputs *grid_intermediate* and *grid_regions*.
+    :type paths: dict
+    :param param: Dictionary containing the parameter *CRS_grid* and the user preferences *number_clusters* and *intermediate_number*.
+    :type param: dict
+    
+    :return: The intermediate and final outputs are saved directly in the desired shapefiles.
+    :rtype: None
     """
     timecheck("Start")
 

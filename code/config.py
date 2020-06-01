@@ -249,8 +249,8 @@ def transmission_parameters(param):
     This function sets the parameters for transmission line clustering.
     
     * *CRS_grid*: The coordinates reference system of the shapefile of transmission lines, in order to read it correctly.
-    * *default_cap_MVA*: 
-    * *default_line_type*:
+    * *default_cap_MVA*: Line capacity in MVA for added lines (to connect electric islands).
+    * *default_line_type*: Line type for added lines (to connect electric islands).
     * *number_clusters*: Target number of regions after clustering, to be used as a condition to stop the algorithm.
     * *intermediate_number*: List of numbers of clusters at which an intermediate shapefile will be saved. The values affect the path *grid_intermediate*.
     * *debugging_number*: Number of clusters within an intermediate shapefile, that can be used as an input (for debugging). It affects the path *grid_debugging*.
