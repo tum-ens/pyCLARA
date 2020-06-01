@@ -64,7 +64,7 @@ runme.py
 .. literalinclude:: ../code/runme.py
    :language: python
    :linenos:
-   :emphasize-lines: 12, 19, 20, 23, 27
+   :emphasize-lines: 12, 19, 20, 23, 26
 
 Recommended input sources
 -------------------------
