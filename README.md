@@ -50,5 +50,6 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 ## Please cite as
 We prefer that you cite the original publication, where the tool was introduced:
 * Siala, Kais; Mahfouz, Mohammad Youssef: [Impact of the choice of regions on energy system models](https://doi.org/10.1016/j.esr.2019.100362). Energy Strategy Reviews 25, 2019, 75-85.
+
 If you are using a new feature that was not part of the publication, and would like to cite it:
 * Kais Siala, Houssame Houmy, Waleed Sattar Khan, & Mohammad Youssef Mahfouz. (2020, June 1). tum-ens/pyCLARA: python Clustering of Lines And RAsters (Version v1.0.0). Zenodo. http://doi.org/10.5281/zenodo.3872274
