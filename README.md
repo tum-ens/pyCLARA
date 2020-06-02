@@ -1,5 +1,6 @@
 # pyCLARA
 [![Documentation Status](https://readthedocs.org/projects/geoclustering/badge/?version=latest)](http://geoclustering.readthedocs.io/en/latest/?badge=latest)
+[![DOI](https://zenodo.org/badge/175087742.svg)](https://zenodo.org/badge/latestdoi/175087742)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![All Contributors](https://img.shields.io/badge/all_contributors-4-orange.svg?style=flat-square)](#contributors)
@@ -45,3 +46,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
+
+## Please cite as
+We prefer that you cite the original publication, where the tool was introduced:
+* Siala, Kais; Mahfouz, Mohammad Youssef: [Impact of the choice of regions on energy system models](https://doi.org/10.1016/j.esr.2019.100362). Energy Strategy Reviews 25, 2019, 75-85.
+If you are using a new feature that was not part of the publication, and would like to cite it:
+* Kais Siala, Houssame Houmy, Waleed Sattar Khan, & Mohammad Youssef Mahfouz. (2020, June 1). tum-ens/pyCLARA: python Clustering of Lines And RAsters (Version v1.0.0). Zenodo. http://doi.org/10.5281/zenodo.3872274
