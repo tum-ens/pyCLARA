@@ -41,18 +41,18 @@ def general_settings():
     global root
 
     param = {}
-    param["author"] = "Kais Siala"  # the name of the person running the script
-    param["comment"] = "Testing lines"
+    param["author"] = "User"  # the name of the person running the script
+    param["comment"] = "Tutorial"
 
     paths = {}
     fs = os.path.sep
     current_folder = os.path.dirname(os.path.abspath(__file__))
-    root = str(Path(current_folder).parent.parent.parent)
+    root = str(Path(current_folder).parent.parent)
     # For use at TUM ENS
     if root[-1] != fs:
-        root = root + fs + "Database_KS" + fs
+        root = root + fs + "Database" + fs
     else:
-        root = root + "Database_KS" + fs
+        root = root + "Database" + fs
 
     return paths, param
 
@@ -84,21 +84,21 @@ def scope_paths_and_parameters(paths, param):
     :rtype: tuple(dict, dict)
     """
     # Name tags for the scope
-    param["region_name"] = "Europe"  # Name tag of the spatial scope
+    param["region_name"] = "Austria"  # Name tag of the spatial scope
 
     # Path to the shapefile of the scope (useful for lines clustering)
     PathTemp = root + "02 Shapefiles for regions" + fs + "User-defined" + fs
-    paths["spatial_scope"] = PathTemp + "Europe_NUTS0_wo_Balkans.shp"
+    paths["spatial_scope"] = PathTemp + "gadm36_AUT_0.shp"
 
     # Input rasters with their aggregation function and weights
     inputs = {
         "Wind_FLH": (
-            root + "03 Intermediate files" + fs + "Files Europe" + fs + "Renewable energy" + fs + "Potential" + fs + "Europe_WindOn_80_FLH_2015.tif",
+            root + "03 Intermediate files" + fs + "Files Austria" + fs + "Renewable energy" + fs + "Potential" + fs + "Austria_WindOn_80_FLH_2015.tif",
             "mean",
             1,
         ),
         "Solar_FLH": (
-            root + "03 Intermediate files" + fs + "Files Europe" + fs + "Renewable energy" + fs + "Potential" + fs + "Europe_PV_0_FLH_2015.tif",
+            root + "03 Intermediate files" + fs + "Files Austria" + fs + "Renewable energy" + fs + "Potential" + fs + "Austria_PV_0_FLH_2015.tif",
             "mean",
             1,
         ),
@@ -176,7 +176,7 @@ def raster_cutting_parameters(paths, param):
     param["use_shapefile"] = 1
 
     # If using shapefile, please provide the following parameters/paths
-    paths["subregions"] = root + "02 Shapefiles for regions" + fs + "user-defined" + fs + "Europe_NUTS0_wo_Balkans.shp"
+    paths["subregions"] = root + "02 Shapefiles for regions" + fs + "user-defined" + fs + "gadm36_AUT_0.shp"
 
     # If not using shapefile, please provide the following parameters
     param["rows"] = 2
@@ -239,7 +239,7 @@ def maxp_parameters(param):
     :return param: The updated dictionary param.
     :rtype: dict
     """
-    param["maxp"] = {"maximum_number": 1800 * 1.01, "final_number": 28, "use_results_of_maxp_parts": 0}
+    param["maxp"] = {"maximum_number": 1800 * 1.01, "final_number": 9, "use_results_of_maxp_parts": 0}
 
     return param
 
@@ -264,7 +264,7 @@ def transmission_parameters(param):
     param["CRS_grid"] = "epsg:4326"
     param["default_cap_MVA"] = 100
     param["default_line_type"] = "AC_OHL"
-    param["number_clusters"] = 28
+    param["number_clusters"] = 9
     param["intermediate_number"] = [8200, 4000, 1000, 200, 50]
     param["debugging_number"] = 1000
 

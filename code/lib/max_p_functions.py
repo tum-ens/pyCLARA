@@ -205,7 +205,8 @@ def max_p_whole_map(paths, param, combined_file):
     w.neighbors = correct_neighbors_in_shapefile(param, combined_file, w.neighbors)
     print("Neighbors corrected!")
 
-    thr = 0.3 * (param["maxp"]["final_number"] / len(data)) * data["Value"].sum()
+    thr = 0.0026 * (len(data) / param["maxp"]["final_number"]) * data["Value"].sum()
+    # thr = 0.3 * (param["maxp"]["final_number"] / len(data)) * data["Value"].sum()
     print("Threshold: " + str(thr))
     random_no = rd.randint(1000, 1500)  # The range is selected randomly.
     np.random.seed(random_no)

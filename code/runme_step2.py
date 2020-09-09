@@ -11,7 +11,7 @@ if __name__ == "__main__":
 
     cut_raster(paths, param)
 
-    # k-means functions
+    # # k-means functions
     calculate_stats_for_non_empty_rasters(paths, param)
     if param["kmeans"]["method"] == "reference_part":
         choose_ref_part(paths)
@@ -23,4 +23,4 @@ if __name__ == "__main__":
     max_p_clustering(paths, param)
 
     # lines clustering functions
-    lines_clustering(paths, param)
+    # lines_clustering(paths, param)
