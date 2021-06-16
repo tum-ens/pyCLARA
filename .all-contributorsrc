@@ -49,10 +49,19 @@
         "code",
         "ideas"
       ]
+    },
+    {
+      "login": "molarana",
+      "name": "molarana",
+      "avatar_url": "https://avatars.githubusercontent.com/u/19924540?v=4",
+      "profile": "https://github.com/molarana",
+      "contributions": [
+        "design"
+      ]
     }
   ],
   "contributorsPerLine": 7,
-  "projectName": "geoclustering",
+  "projectName": "pyCLARA",
   "projectOwner": "tum-ens",
   "repoType": "github",
   "repoHost": "https://github.com",
