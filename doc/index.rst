@@ -6,6 +6,7 @@ pyCLARA
    :align: left
    :alt: pyCLARA_logo
 
+
 ---------------------------------------------------
 python Clustering of Lines And RAsters 
 ---------------------------------------------------
