@@ -1,4 +1,7 @@
-# pyCLARA
+<div align="left">
+<img src="doc\img\pyCLARA_logo.png" alt="pyCLARA_logo" width="160px">
+</div>
+
 [![Documentation Status](https://readthedocs.org/projects/pyclara/badge/?version=latest)](http://pyclara.readthedocs.io/en/latest/?badge=latest)
 [![DOI](https://zenodo.org/badge/175087742.svg)](https://zenodo.org/badge/latestdoi/175087742)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
