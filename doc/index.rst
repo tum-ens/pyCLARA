@@ -7,9 +7,11 @@ pyCLARA
    :align: left
    :alt: pyCLARA_logo
 
+.. |br| raw:: html
 
+   <br />
 
-
+|br|
 ---------------------------------------------------
 python Clustering of Lines And RAsters 
 ---------------------------------------------------
