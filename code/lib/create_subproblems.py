@@ -1,5 +1,5 @@
-from lib.spatial_functions import calc_region, array2raster, crd_bounding_box, ind_from_crd
-from lib.util import *
+from .spatial_functions import calc_region, array2raster, crd_bounding_box, ind_from_crd
+from .util import *
 
 
 def cut_raster(paths, param):

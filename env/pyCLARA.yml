@@ -1,4 +1,4 @@
-name: geoclustering
+name: pyCLARA
 channels:
   - defaults
   - conda-forge
@@ -10,5 +10,5 @@ dependencies:
   - libpysal
   - rasterio
   - networkx
-prefix: D:\Miniconda3\envs\geoclustering
+# prefix: D:\Miniconda3\envs\pyCLARA
 

@@ -1,5 +1,5 @@
-from lib.spatial_functions import assign_disconnected_components_to_nearest_neighbor
-from lib.util import *
+from .spatial_functions import assign_disconnected_components_to_nearest_neighbor
+from .util import *
 
 
 def max_p_clustering(paths, param):
