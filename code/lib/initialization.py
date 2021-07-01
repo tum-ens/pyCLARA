@@ -1,6 +1,6 @@
 from config import configuration
-from lib.spatial_functions import calc_geotiff
-from lib.util import *
+from .spatial_functions import calc_geotiff
+from .util import *
 
 
 def initialization():

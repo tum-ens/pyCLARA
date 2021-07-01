@@ -2,6 +2,18 @@
 pyCLARA
 =============
 
+.. figure:: img/pyCLARA_logo.png
+   :width: 20%
+   :align: left
+   :alt: pyCLARA_logo
+
+.. |br| raw:: html
+
+   <br />
+
+|br|
+
+|br|
 ---------------------------------------------------
 python Clustering of Lines And RAsters 
 ---------------------------------------------------
@@ -39,6 +51,11 @@ Related publications
 
 Changes
 --------
+version 1.0.1
+^^^^^^^^^^^^^^
+* Adding logo for the tool.
+* Minor fixes and improvements.
+
 version 1.0.0
 ^^^^^^^^^^^^^^
 This is the initial version.

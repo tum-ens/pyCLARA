@@ -1,4 +1,4 @@
-from lib.util import *
+from .util import *
 
 
 def array_to_raster(array, destination_file, input_raster_file):
