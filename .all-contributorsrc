@@ -58,6 +58,16 @@
       "contributions": [
         "design"
       ]
+    },
+    {
+      "login": "lodersky",
+      "name": "lodersky",
+      "avatar_url": "https://avatars.githubusercontent.com/u/36160124?v=4",
+      "profile": "https://github.com/lodersky",
+      "contributions": [
+        "code",
+        "review"
+      ]
     }
   ],
   "contributorsPerLine": 7,
