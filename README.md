@@ -1,9 +1,12 @@
-# pyCLARA
+<div align="left">
+<img src="doc\img\pyCLARA_logo.png" alt="pyCLARA_logo" width="160px">
+</div>
+
 [![Documentation Status](https://readthedocs.org/projects/pyclara/badge/?version=latest)](http://pyclara.readthedocs.io/en/latest/?badge=latest)
 [![DOI](https://zenodo.org/badge/175087742.svg)](https://zenodo.org/badge/latestdoi/175087742)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![All Contributors](https://img.shields.io/badge/all_contributors-4-orange.svg?style=flat-square)](#contributors)
+[![All Contributors](https://img.shields.io/badge/all_contributors-5-orange.svg?style=flat-square)](#contributors)
 
 **py**thon **C**lustering of **L**ines **A**nd **RA**sters: a tool to cluster high-resolution spatial data (rasters or polylines connecting Voronoi polygons) into contiguous, homogeneous regions.
 
@@ -34,15 +37,17 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <!-- markdownlint-disable -->
 <table>
   <tr>
-    <td align="center"><a href="https://github.com/kais-siala"><img src="https://avatars2.githubusercontent.com/u/21306297?v=4" width="100px;" alt=""/><br /><sub><b>kais-siala</b></sub></a><br /><a href="https://github.com/tum-ens/geoclustering/commits?author=kais-siala" title="Code">💻</a> <a href="https://github.com/tum-ens/geoclustering/commits?author=kais-siala" title="Documentation">📖</a> <a href="#example-kais-siala" title="Examples">💡</a> <a href="#ideas-kais-siala" title="Ideas, Planning, & Feedback">🤔</a> <a href="#maintenance-kais-siala" title="Maintenance">🚧</a> <a href="https://github.com/tum-ens/geoclustering/pulls?q=is%3Apr+reviewed-by%3Akais-siala" title="Reviewed Pull Requests">👀</a> <a href="#talk-kais-siala" title="Talks">📢</a></td>
-    <td align="center"><a href="https://github.com/HoussameH"><img src="https://avatars2.githubusercontent.com/u/48953960?v=4" width="100px;" alt=""/><br /><sub><b>HoussameH</b></sub></a><br /><a href="https://github.com/tum-ens/geoclustering/commits?author=HoussameH" title="Code">💻</a> <a href="https://github.com/tum-ens/geoclustering/commits?author=HoussameH" title="Documentation">📖</a></td>
-    <td align="center"><a href="https://github.com/waleedskhan"><img src="https://avatars0.githubusercontent.com/u/48930932?v=4" width="100px;" alt=""/><br /><sub><b>Waleed Sattar Khan</b></sub></a><br /><a href="https://github.com/tum-ens/geoclustering/commits?author=waleedskhan" title="Code">💻</a> <a href="https://github.com/tum-ens/geoclustering/commits?author=waleedskhan" title="Documentation">📖</a></td>
-    <td align="center"><a href="https://github.com/MYMahfouz"><img src="https://avatars3.githubusercontent.com/u/33868271?v=4" width="100px;" alt=""/><br /><sub><b>MYMahfouz</b></sub></a><br /><a href="https://github.com/tum-ens/geoclustering/commits?author=MYMahfouz" title="Code">💻</a> <a href="#ideas-MYMahfouz" title="Ideas, Planning, & Feedback">🤔</a></td>
+    <td align="center"><a href="https://github.com/kais-siala"><img src="https://avatars2.githubusercontent.com/u/21306297?v=4?s=100" width="100px;" alt=""/><br /><sub><b>kais-siala</b></sub></a><br /><a href="https://github.com/tum-ens/pyCLARA/commits?author=kais-siala" title="Code">💻</a> <a href="https://github.com/tum-ens/pyCLARA/commits?author=kais-siala" title="Documentation">📖</a> <a href="#example-kais-siala" title="Examples">💡</a> <a href="#ideas-kais-siala" title="Ideas, Planning, & Feedback">🤔</a> <a href="#maintenance-kais-siala" title="Maintenance">🚧</a> <a href="https://github.com/tum-ens/pyCLARA/pulls?q=is%3Apr+reviewed-by%3Akais-siala" title="Reviewed Pull Requests">👀</a> <a href="#talk-kais-siala" title="Talks">📢</a></td>
+    <td align="center"><a href="https://github.com/HoussameH"><img src="https://avatars2.githubusercontent.com/u/48953960?v=4?s=100" width="100px;" alt=""/><br /><sub><b>HoussameH</b></sub></a><br /><a href="https://github.com/tum-ens/pyCLARA/commits?author=HoussameH" title="Code">💻</a> <a href="https://github.com/tum-ens/pyCLARA/commits?author=HoussameH" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/waleedskhan"><img src="https://avatars0.githubusercontent.com/u/48930932?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Waleed Sattar Khan</b></sub></a><br /><a href="https://github.com/tum-ens/pyCLARA/commits?author=waleedskhan" title="Code">💻</a> <a href="https://github.com/tum-ens/pyCLARA/commits?author=waleedskhan" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/MYMahfouz"><img src="https://avatars3.githubusercontent.com/u/33868271?v=4?s=100" width="100px;" alt=""/><br /><sub><b>MYMahfouz</b></sub></a><br /><a href="https://github.com/tum-ens/pyCLARA/commits?author=MYMahfouz" title="Code">💻</a> <a href="#ideas-MYMahfouz" title="Ideas, Planning, & Feedback">🤔</a></td>
+    <td align="center"><a href="https://github.com/molarana"><img src="https://avatars.githubusercontent.com/u/19924540?v=4?s=100" width="100px;" alt=""/><br /><sub><b>molarana</b></sub></a><br /><a href="#design-molarana" title="Design">🎨</a></td>
   </tr>
 </table>
 
-<!-- markdownlint-enable -->
+<!-- markdownlint-restore -->
 <!-- prettier-ignore-end -->
+
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!

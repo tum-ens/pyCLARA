@@ -2,6 +2,18 @@
 pyCLARA
 =============
 
+.. figure:: img/pyCLARA_logo.png
+   :width: 20%
+   :align: left
+   :alt: pyCLARA_logo
+
+.. |br| raw:: html
+
+   <br />
+
+|br|
+
+|br|
 ---------------------------------------------------
 python Clustering of Lines And RAsters 
 ---------------------------------------------------
