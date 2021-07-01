@@ -42,6 +42,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/waleedskhan"><img src="https://avatars0.githubusercontent.com/u/48930932?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Waleed Sattar Khan</b></sub></a><br /><a href="https://github.com/tum-ens/pyCLARA/commits?author=waleedskhan" title="Code">💻</a> <a href="https://github.com/tum-ens/pyCLARA/commits?author=waleedskhan" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/MYMahfouz"><img src="https://avatars3.githubusercontent.com/u/33868271?v=4?s=100" width="100px;" alt=""/><br /><sub><b>MYMahfouz</b></sub></a><br /><a href="https://github.com/tum-ens/pyCLARA/commits?author=MYMahfouz" title="Code">💻</a> <a href="#ideas-MYMahfouz" title="Ideas, Planning, & Feedback">🤔</a></td>
     <td align="center"><a href="https://github.com/molarana"><img src="https://avatars.githubusercontent.com/u/19924540?v=4?s=100" width="100px;" alt=""/><br /><sub><b>molarana</b></sub></a><br /><a href="#design-molarana" title="Design">🎨</a></td>
+    <td align="center"><a href="https://github.com/lodersky"><img src="https://avatars.githubusercontent.com/u/36160124?v=4?s=100" width="100px;" alt=""/><br /><sub><b>lodersky</b></sub></a><br /><a href="https://github.com/tum-ens/pyCLARA/commits?author=lodersky" title="Code">💻</a> <a href="https://github.com/tum-ens/pyCLARA/pulls?q=is%3Apr+reviewed-by%3Alodersky" title="Reviewed Pull Requests">👀</a></td>
   </tr>
 </table>
 
